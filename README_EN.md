@@ -1,5 +1,8 @@
 # 🎮 UnitySkills
 
+<p align="center">
+  <img src="docs/Unity-Skills-H.png" alt="Unity-Skills" width="800">
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Unity-2021.3%2B-black?style=for-the-badge&logo=unity" alt="Unity">
@@ -32,19 +35,20 @@ This project is a deep refactoring and feature extension based on the excellent 
 - 🔌 **Full Environment Compatibility**: Perfect support for Claude Code, Antigravity, Gemini CLI, and other mainstream AI terminals.
 - 🎥 **Cinemachine 2.x/3.x Dual Version Support**: Auto-detects Unity version and installs the corresponding Cinemachine, supporting **MixingCamera**, **ClearShot**, **TargetGroup**, **Spline**, and other advanced camera controls.
 - 🔗 **Stable Long-Running Tasks**: User-configurable request timeout (default 60 minutes), automatic port recovery after Domain Reload, Python client auto-syncs timeout from server, fully resolving disconnection issues during long tasks.
+- **UI Toolkit** fully supported, with guided generation of elegant UXML and USS templates to assist UI development.
 
 ---
 
 ## 🏗️ Supported IDEs / Terminals
 
-This project has been deeply optimized for the following environments to ensure a continuous and stable development experience:
+This project has been deeply optimized for the following environments to ensure a continuous and stable development experience (tools not listed below are not necessarily unsupported — they just lack a quick installer; use ***Custom Installation*** to the corresponding directory):
 
 | AI Terminal | Support Status | Special Features |
 | :--- | :---: | :--- |
-| **Antigravity** | ✅ Fully Supported | Supports `/unity-skills` slash commands with native workflow integration. |
-| **Claude Code** | ✅ Fully Supported | Intelligent Skill intent recognition, supports complex multi-step automation. |
-| **Gemini CLI** | ✅ Fully Supported | Experimental support, adapted to the latest `experimental.skills` specification. |
-| **Codex** | ✅ Fully Supported | Supports `$skill` explicit invocation and implicit intent recognition. |
+| **Antigravity** | ✅ Supported | Supports `/unity-skills` slash commands with native workflow integration. |
+| **Claude Code** | ✅ Supported | Intelligent Skill intent recognition, supports complex multi-step automation. |
+| **Gemini CLI** | ✅ Supported | Experimental support, adapted to the latest `experimental.skills` specification. |
+| **Codex** | ✅ Supported | Supports `$skill` explicit invocation and implicit intent recognition. |
 
 ---
 
@@ -183,7 +187,7 @@ If you're using other tools that support Skills, install according to the Skills
 .
 ├── SkillsForUnity/                 # Unity Editor Plugin (UPM Package)
 │   ├── package.json                # com.besty.unity-skills
-│   └── Editor/Skills/              # Core Skill Logic (37 *Skills.cs files, 431 Skills)
+│   └── Editor/Skills/              # Core Skill Logic (37 *Skills.cs files, 446 Skills)
 │       ├── SkillsHttpServer.cs     # HTTP Server Core (Producer-Consumer)
 │       ├── SkillRouter.cs          # Request Routing & Reflection-based Skill Discovery
 │       ├── WorkflowManager.cs      # Persistent Workflow (Task/Session/Snapshot)
@@ -195,7 +199,7 @@ If you're using other tools that support Skills, install according to the Skills
 │       ├── CinemachineSkills.cs    # Cinemachine 2.x/3.x (23 skills)
 │       ├── WorkflowSkills.cs       # Workflow Undo/Rollback (22 skills)
 │       ├── PerceptionSkills.cs     # Scene Understanding (9 skills)
-│       └── ...                     # 431 Skills source code
+│       └── ...                     # 446 Skills source code
 ├── unity-skills/                   # Cross-platform AI Skill Template (Distributed to AI Tools)
 │   ├── SKILL.md                    # Main Skill Definitions (AI-readable)
 │   ├── scripts/
