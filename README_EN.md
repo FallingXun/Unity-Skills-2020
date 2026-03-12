@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Unity-2022.3%2B-black?style=for-the-badge&logo=unity" alt="Unity">
-  <img src="https://img.shields.io/badge/Skills-446-green?style=for-the-badge" alt="Skills">
+  <img src="https://img.shields.io/badge/Skills-447-green?style=for-the-badge" alt="Skills">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-orange?style=for-the-badge" alt="License"></a>
 </p>
 
@@ -30,14 +30,15 @@ This project is a deep refactoring and feature extension based on the excellent 
 ## 🚀 Core Features
 
 - ⚡ **Ultimate Efficiency**: Supports **Result Truncation** and **SKILL.md** optimization to maximize token savings.
-- 🛠️ **Comprehensive Toolkit**: Built-in 446 Skills with **Batch** operations, significantly reducing HTTP overhead and improving execution efficiency.
+- 🛠️ **Comprehensive Toolkit**: Built-in **447 REST Skills** plus **13 advisory design modules**, with **Batch** operations that significantly reduce HTTP overhead and improve execution efficiency.
 - 🛡️ **Safety First**: Supports **Transactional** (atomic operations) with automatic rollback on failure, leaving no residue in scenes.
 - 🌍 **Multi-Instance Support**: Automatic port discovery and global registry, enabling simultaneous control of multiple Unity projects.
 - 🤖 **Deep Integration**: Exclusive support for **Antigravity Slash Commands**, unlocking the `/unity-skills` interactive experience.
 - 🔌 **Full Environment Compatibility**: Perfect support for Claude Code, Antigravity, Gemini CLI, and other mainstream AI terminals.
 - 🎥 **Cinemachine 2.x/3.x Dual Version Support**: Auto-detects Unity version and installs the corresponding Cinemachine, supporting **MixingCamera**, **ClearShot**, **TargetGroup**, **Spline**, and other advanced camera controls.
-- 🔗 **Stable Long-Running Tasks**: User-configurable request timeout (default 15 minutes), automatic port recovery after Domain Reload, Python client auto-syncs timeout from server, fully resolving disconnection issues during long tasks.
-- **UI Toolkit** fully supported, with guided generation of elegant UXML and USS templates to assist UI development.
+- 🔗 **Stable Long-Running Tasks**: User-configurable request timeout (default 15 minutes), automatic port recovery after Domain Reload, and explicit retry hints when script compilation, define changes, asset reimport, or package operations temporarily interrupt the server.
+- 🧠 **Architecture & Script Design Guidance**: Advisory modules can help AI reason about coupling, performance, maintainability, and Inspector ergonomics before generating gameplay code.
+- 🎨 **UI Toolkit** fully supported, with guided generation of elegant UXML and USS templates to assist UI development.
 
 ---
 
@@ -75,9 +76,9 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity
 https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#beta
 ```
 
-**Specific Version** (e.g., v1.6.0):
+**Specific Version** (e.g., v1.6.2):
 ```
-https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
+https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.2
 ```
 
 > 📦 All version packages are available on the [Releases](https://github.com/Besty0728/Unity-Skills/releases) page
@@ -85,13 +86,19 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 ### 2. Start Server
 In Unity, click menu: `Window > UnitySkills > Start Server`
 
+> ⏳ `script_*`, `debug_force_recompile`, `debug_set_defines`, some asset reimports, and package changes may trigger compilation or Domain Reload. Temporary REST unavailability during that window is expected; wait a moment and retry.
+
 ### 3. One-Click AI Skills Configuration
 1. Open `Window > UnitySkills > Skill Installer`.
 2. Select the corresponding terminal icon (Claude / Antigravity / Gemini / Codex).
 3. Click **"Install"** to complete the environment configuration without manual code copying.
 
+> The installer copies the complete `unity-skills/` template directory.
+>
 > Installer output files (generated in target directory):
 > - `SKILL.md`
+> - `skills/`
+> - `references/`
 > - `scripts/unity_skills.py`
 > - `scripts/agent_config.json` (contains Agent identifier)
 > - Antigravity additionally generates `workflows/unity-skills.md`
@@ -118,6 +125,7 @@ If one-click installation is not supported or preferred, follow this **standard 
 5. **Directory Structure Requirements**: After copying, maintain the structure as follows (example):
    - `unity-skills/SKILL.md`
    - `unity-skills/skills/`
+   - `unity-skills/references/`
    - `unity-skills/scripts/unity_skills.py`
    - `unity-skills/scripts/agent_config.json`
 6. **Restart the Tool**: Let the tool reload the Skills list.
@@ -132,11 +140,11 @@ The following are verified default directories (if the tool has a custom path co
 - OpenAI Codex: `~/.codex/skills/`
 
 #### 🧩 Other Tools Supporting Skills
-If you're using other tools that support Skills, install according to the Skills root directory specified in that tool's documentation. As long as the **standard installation specification** is met (root directory contains `SKILL.md` and maintains `skills/` and `scripts/` structure), it will be correctly recognized.
+If you're using other tools that support Skills, install according to the Skills root directory specified in that tool's documentation. As long as the **standard installation specification** is met (root directory contains `SKILL.md` and maintains `skills/`, `references/`, and `scripts/` structure), it will be correctly recognized.
 
 ---
 
-## 📦 Skills Category Overview (446)
+## 📦 Skills Category Overview (447)
 
 | Category | Count | Core Functions |
 | :--- | :---: | :--- |
@@ -180,6 +188,8 @@ If you're using other tools that support Skills, install according to the Skills
 | **Sample** | 8 | Basic examples: Create/Delete/Transform/Scene info |
 
 > ⚠️ Most modules support `*_batch` batch operations. When operating on multiple objects, prioritize batch Skills for better performance.
+>
+> 🧠 `unity-skills/skills/` also includes **13 advisory design modules** for architecture, script design, performance, maintainability, and Inspector guidance.
 
 ---
 
@@ -189,7 +199,7 @@ If you're using other tools that support Skills, install according to the Skills
 .
 ├── SkillsForUnity/                 # Unity Editor Plugin (UPM Package)
 │   ├── package.json                # com.besty.unity-skills
-│   └── Editor/Skills/              # Core Skill Logic (37 *Skills.cs files, 446 Skills)
+│   └── Editor/Skills/              # Core Skill Logic (38 *Skills.cs files, 447 Skills)
 │       ├── SkillsHttpServer.cs     # HTTP Server Core (Producer-Consumer)
 │       ├── SkillRouter.cs          # Request Routing & Reflection-based Skill Discovery
 │       ├── WorkflowManager.cs      # Persistent Workflow (Task/Session/Snapshot)
@@ -201,12 +211,12 @@ If you're using other tools that support Skills, install according to the Skills
 │       ├── CinemachineSkills.cs    # Cinemachine 2.x/3.x (23 skills)
 │       ├── WorkflowSkills.cs       # Workflow Undo/Rollback (22 skills)
 │       ├── PerceptionSkills.cs     # Scene Understanding (9 skills)
-│       └── ...                     # 446 Skills source code
+│       └── ...                     # 447 Skills source code
 ├── unity-skills/                   # Cross-platform AI Skill Template (Distributed to AI Tools)
 │   ├── SKILL.md                    # Main Skill Definitions (AI-readable)
 │   ├── scripts/
 │   │   └── unity_skills.py         # Python Client Library
-│   ├── skills/                     # Modular Skill Documentation
+│   ├── skills/                     # Modular Skill Documentation + 13 advisory modules
 │   └── references/                 # Unity Development References
 ├── docs/
 │   └── SETUP_GUIDE.md              # Complete Setup & Usage Guide

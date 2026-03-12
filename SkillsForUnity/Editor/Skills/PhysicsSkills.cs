@@ -71,7 +71,7 @@ namespace UnitySkills
             return new { x = g.x, y = g.y, z = g.z };
         }
 
-        [UnitySkill("physics_set_gravity", "Set global gravity setting")]
+        [UnitySkill("physics_set_gravity", "Set global gravity setting", TracksWorkflow = true)]
         public static object PhysicsSetGravity(float x, float y, float z)
         {
             // Record for Undo support via DynamicsManager asset
@@ -176,7 +176,7 @@ namespace UnitySkills
             return new { count = results.Length, colliders = results };
         }
 
-        [UnitySkill("physics_create_material", "Create a PhysicMaterial asset")]
+        [UnitySkill("physics_create_material", "Create a PhysicMaterial asset", TracksWorkflow = true)]
         public static object PhysicsCreateMaterial(
             string name = "New PhysicMaterial", string savePath = "Assets",
             float dynamicFriction = 0.6f, float staticFriction = 0.6f, float bounciness = 0f)
@@ -205,7 +205,7 @@ namespace UnitySkills
             return new { success = true, path };
         }
 
-        [UnitySkill("physics_set_material", "Set PhysicMaterial on a collider (supports name/instanceId/path)")]
+        [UnitySkill("physics_set_material", "Set PhysicMaterial on a collider (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object PhysicsSetMaterial(
             string materialPath, string name = null, int instanceId = 0, string path = null)
         {
@@ -232,7 +232,7 @@ namespace UnitySkills
             return new { layer1, layer2, collisionEnabled = !ignored };
         }
 
-        [UnitySkill("physics_set_layer_collision", "Set whether two layers collide")]
+        [UnitySkill("physics_set_layer_collision", "Set whether two layers collide", TracksWorkflow = true)]
         public static object PhysicsSetLayerCollision(int layer1, int layer2, bool enableCollision = true)
         {
             Physics.IgnoreLayerCollision(layer1, layer2, !enableCollision);

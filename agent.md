@@ -1,4 +1,4 @@
-# UnitySkills Agent 文档
+﻿# UnitySkills Agent 文档
 
 > 本文档面向 AI Agent，提供项目全貌速览，帮助 AI 快速理解项目结构与开发规范。
 
@@ -12,6 +12,9 @@
 | **版本** | 1.6.2 |
 | **技术栈** | C# (Unity Editor) + Python (Client) |
 | **Unity 版本** | 2022.3+（官方维护基线，已验证 Unity 6 / 6000.2.x） |
+| **REST Skills** | 447 |
+| **Advisory 模块** | 13 |
+| **默认超时** | 15 分钟 |
 | **协议** | MIT |
 | **核心功能** | 通过 REST API 让 AI 直接控制 Unity 编辑器 |
 
@@ -36,7 +39,7 @@
 │             SkillsForUnity (Unity Editor Plugin)             │
 │  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────┐  │
 │  │ SkillsHttpServer│→ │ SkillRouter │→ │[UnitySkill] 方法│  │
-│  │ (Multi-Instance)│  │(Auto-Undo)  │  │  (446 Skills)   │  │
+│  │ (Multi-Instance)│  │(Auto-Undo)  │  │  (447 Skills)   │  │
 │  └─────────────────┘  └─────────────┘  └─────────────────┘  │
 │           ↓                  ↓                              │
 │  ┌─────────────────┐  ┌─────────────────────────────────┐   │
@@ -81,6 +84,7 @@
 - **自动恢复**：Domain Reload 后自动重启服务器（端口持久化 + 秒级延迟重试 + 端口 fallback）
 - **超时可配置**：请求超时默认 15 分钟，用户可在设置面板自定义，Python 客户端自动同步
 - **超时值线程安全缓存**：`RequestTimeoutMs` 在 `Start()` 时缓存到静态字段，避免 ThreadPool 线程调用 `EditorPrefs`（主线程限定 API）导致 500 错误
+- **编译期短暂不可达属于预期**：脚本保存、强制重编译、Define 变更、资源重导入、包安装/移除等操作可能触发编译或 Domain Reload；此时 REST 服务短暂不可达是正常现象，客户端应等待后重试
 
 ---
 
@@ -141,13 +145,13 @@ Unity-Skills/
 │           ├── ProfilerSkills.cs       # Profiler 性能分析 (10 skills)
 │           ├── PerceptionSkills.cs     # Perception 场景理解 (9 skills)
 │           ├── SampleSkills.cs         # 基础示例 (8 skills)
-│           └── ... (38 个 *Skills.cs 文件, 共 446 Skills)
+│           └── ... (38 个 *Skills.cs 文件, 共 447 Skills)
 │
 ├── unity-skills/                   # 跨平台 AI Skill 模板 (分发给 AI 工具)
 │   ├── SKILL.md                    # 主 Skill 定义 (AI 读取)
 │   ├── scripts/
 │   │   └── unity_skills.py         # Python 客户端库
-│   ├── skills/                     # 按模块分类的 Skill 文档
+│   ├── skills/                     # 按模块分类的 Skill 文档（含 13 个 advisory 模块）
 │   │   ├── gameobject/SKILL.md
 │   │   ├── component/SKILL.md
 │   │   ├── material/SKILL.md
@@ -463,24 +467,31 @@ public static class MyCustomSkills
 
 ## 📌 版本号更新规范
 
-> ⚠️ **重要规则**：当前版本号维护采用“统一常量 + 派生位点”模式。每次发布新版本时，必须同步检查以下 **8 处**：
+> ⚠️ **重要规则**：当前版本号维护采用“统一常量 + 派生位点”模式。每次发布新版本时，必须同步检查以下 **10 处**：
 
 | 序号 | 文件路径 | 位置 |
 |:----:|----------|------|
 | 1 | `SkillsForUnity/Editor/Skills/SkillsLogger.cs` | `public const string Version = "x.x.x"`，这是 C# 端统一版本源 |
-| 2 | `agent.md` | 第 12 行 `\| **版本** \|` 表格 |
-| 3 | `SkillsForUnity/package.json` | 第 3 行 `"version": "x.x.x"` |
+| 2 | `agent.md` | 顶部概览表格中的 `\| **版本** \|` 等关键信息 |
+| 3 | `SkillsForUnity/package.json` | `"version": "x.x.x"` |
 | 4 | `CHANGELOG.md` | 顶部新增 `## [x.x.x] - YYYY-MM-DD` 条目 |
 | 5 | `unity-skills/scripts/unity_skills.py` | `__version__ = "x.x.x"` |
-| 6 | `README.md` | Git URL 示例中的 `#vX.X.X`、必要时正文版本说明 |
-| 7 | `README_EN.md` | Git URL 示例中的 `#vX.X.X`、必要时正文版本说明 |
-| 8 | `SkillsHttpServer.cs` / `SkillRouter.cs` | 两者应继续使用 `SkillsLogger.Version`，不要再写死字面量 |
+| 6 | `README.md` | Git URL 示例、技能数、Unity 基线、超时与安装说明 |
+| 7 | `README_EN.md` | Git URL 示例、技能数、Unity 基线、超时与安装说明 |
+| 8 | `docs/SETUP_GUIDE.md` | 安装、超时、目录结构与使用说明 |
+| 9 | `unity-skills/SKILL.md` | 根 Skill 快照、说明与路由提示 |
+| 10 | `unity-skills/skills/SKILL.md` | 模块索引、覆盖范围与 advisory 说明 |
+
+### 额外约束
+
+- `SkillsHttpServer.cs` / `SkillRouter.cs` 必须继续使用 `SkillsLogger.Version`，不要重新写死字面量。
+- 如果 Unity 维护基线、技能总数、advisory 模块数、默认超时或安装结构发生变化，`.github` 下相关文档与模板也要同步更新。
 
 ### 快速检查命令
 
 ```bash
 # 检查统一版本源与主要文档是否一致
-rg -n "1.6.2|SkillsLogger.Version|__version__" agent.md CHANGELOG.md README.md README_EN.md SkillsForUnity/package.json unity-skills/scripts/unity_skills.py SkillsForUnity/Editor/Skills/SkillsLogger.cs SkillsForUnity/Editor/Skills/SkillsHttpServer.cs SkillsForUnity/Editor/Skills/SkillRouter.cs
+rg -n "1\.6\.2|2022\.3\+|447|15 分钟|15 minutes|SkillsLogger.Version|__version__" agent.md CHANGELOG.md README.md README_EN.md docs/SETUP_GUIDE.md unity-skills/SKILL.md unity-skills/skills/SKILL.md SkillsForUnity/package.json unity-skills/scripts/unity_skills.py SkillsForUnity/Editor/Skills/SkillsLogger.cs
 ```
 
 ---

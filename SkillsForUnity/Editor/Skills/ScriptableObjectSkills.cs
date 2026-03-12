@@ -12,7 +12,7 @@ namespace UnitySkills
     /// </summary>
     public static class ScriptableObjectSkills
     {
-        [UnitySkill("scriptableobject_create", "Create a new ScriptableObject asset")]
+        [UnitySkill("scriptableobject_create", "Create a new ScriptableObject asset", TracksWorkflow = true)]
         public static object ScriptableObjectCreate(string typeName, string savePath)
         {
             if (Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
@@ -66,7 +66,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("scriptableobject_set", "Set a field/property on a ScriptableObject")]
+        [UnitySkill("scriptableobject_set", "Set a field/property on a ScriptableObject", TracksWorkflow = true)]
         public static object ScriptableObjectSet(string assetPath, string fieldName, string value)
         {
             var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
@@ -140,7 +140,7 @@ namespace UnitySkills
             return new { success = true, original = assetPath, copy = newPath };
         }
 
-        [UnitySkill("scriptableobject_set_batch", "Set multiple fields on a ScriptableObject at once. fields: JSON object {fieldName: value, ...}")]
+        [UnitySkill("scriptableobject_set_batch", "Set multiple fields on a ScriptableObject at once. fields: JSON object {fieldName: value, ...}", TracksWorkflow = true)]
         public static object ScriptableObjectSetBatch(string assetPath, string fields)
         {
             var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
@@ -161,7 +161,7 @@ namespace UnitySkills
             return new { success = true, fieldsSet = set };
         }
 
-        [UnitySkill("scriptableobject_delete", "Delete a ScriptableObject asset")]
+        [UnitySkill("scriptableobject_delete", "Delete a ScriptableObject asset", TracksWorkflow = true)]
         public static object ScriptableObjectDelete(string assetPath)
         {
             if (Validate.SafePath(assetPath, "assetPath", isDelete: true) is object pathErr) return pathErr;
@@ -193,13 +193,13 @@ namespace UnitySkills
             if (!string.IsNullOrEmpty(savePath))
             {
                 if (Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
-                File.WriteAllText(savePath, json);
+                File.WriteAllText(savePath, json, new System.Text.UTF8Encoding(false));
                 return new { success = true, path = savePath };
             }
             return new { success = true, json };
         }
 
-        [UnitySkill("scriptableobject_import_json", "Import JSON data into a ScriptableObject")]
+        [UnitySkill("scriptableobject_import_json", "Import JSON data into a ScriptableObject", TracksWorkflow = true)]
         public static object ScriptableObjectImportJson(string assetPath, string json = null, string jsonFilePath = null)
         {
             var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
@@ -208,7 +208,7 @@ namespace UnitySkills
             if (string.IsNullOrEmpty(data) && !string.IsNullOrEmpty(jsonFilePath))
             {
                 if (Validate.SafePath(jsonFilePath, "jsonFilePath") is object pathErr) return pathErr;
-                data = File.ReadAllText(jsonFilePath);
+                data = File.ReadAllText(jsonFilePath, System.Text.Encoding.UTF8);
             }
             if (string.IsNullOrEmpty(data)) return new { error = "No JSON data provided" };
             WorkflowManager.SnapshotObject(asset);

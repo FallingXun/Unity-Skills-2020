@@ -11,6 +11,7 @@ namespace UnitySkills
     {
         public string Name { get; set; }
         public string Description { get; set; }
+        public bool TracksWorkflow { get; set; }
 
         public UnitySkillAttribute() { }
 

@@ -11,7 +11,7 @@ namespace UnitySkills
     /// </summary>
     public static class GameObjectSkills
     {
-        [UnitySkill("gameobject_create_batch", "Create multiple GameObjects in one call (Efficient). items: JSON array of {name, primitiveType, x, y, z}")]
+        [UnitySkill("gameobject_create_batch", "Create multiple GameObjects in one call (Efficient). items: JSON array of {name, primitiveType, x, y, z}", TracksWorkflow = true)]
         public static object GameObjectCreateBatch(string items)
         {
             return BatchExecutor.Execute<BatchCreateItem>(items, item =>
@@ -25,7 +25,7 @@ namespace UnitySkills
                     primitiveType.Equals("None", System.StringComparison.OrdinalIgnoreCase))
                 {
                     go = new GameObject(item.name);
-                    primitiveType = null; // 标准化为 null
+                    primitiveType = null; // Normalize to null for downstream metadata and workflow tracking.
                 }
                 else if (System.Enum.TryParse<PrimitiveType>(primitiveType, true, out var pt))
                 {
@@ -72,7 +72,7 @@ namespace UnitySkills
             public float scaleZ { get; set; } = 1;
         }
 
-        [UnitySkill("gameobject_create", "Create a new GameObject. primitiveType: Cube, Sphere, Capsule, Cylinder, Plane, Quad, or Empty/null for empty object")]
+        [UnitySkill("gameobject_create", "Create a new GameObject. primitiveType: Cube, Sphere, Capsule, Cylinder, Plane, Quad, or Empty/null for empty object", TracksWorkflow = true)]
         public static object GameObjectCreate(string name, string primitiveType = null, float x = 0, float y = 0, float z = 0)
         {
             GameObject go;
@@ -83,7 +83,7 @@ namespace UnitySkills
                 primitiveType.Equals("None", System.StringComparison.OrdinalIgnoreCase))
             {
                 go = new GameObject(name);
-                primitiveType = null; // 标准化为 null
+                primitiveType = null; // Normalize to null for downstream metadata and workflow tracking.
             }
             else if (System.Enum.TryParse<PrimitiveType>(primitiveType, true, out var pt))
             {
@@ -109,7 +109,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("gameobject_rename", "Rename a GameObject (supports name/instanceId/path). Returns: {success, oldName, newName, instanceId}")]
+        [UnitySkill("gameobject_rename", "Rename a GameObject (supports name/instanceId/path). Returns: {success, oldName, newName, instanceId}", TracksWorkflow = true)]
         public static object GameObjectRename(string name = null, int instanceId = 0, string path = null, string newName = null)
         {
             if (Validate.Required(newName, "newName") is object err) return err;
@@ -131,7 +131,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("gameobject_rename_batch", "Rename multiple GameObjects in one call (Efficient). items: JSON array of {name, instanceId, path, newName}. Returns array with oldName, newName for each.")]
+        [UnitySkill("gameobject_rename_batch", "Rename multiple GameObjects in one call (Efficient). items: JSON array of {name, instanceId, path, newName}. Returns array with oldName, newName for each.", TracksWorkflow = true)]
         public static object GameObjectRenameBatch(string items)
         {
             return BatchExecutor.Execute<BatchRenameItem>(items, item =>
@@ -159,7 +159,7 @@ namespace UnitySkills
             public string newName { get; set; }
         }
 
-        [UnitySkill("gameobject_delete", "Delete a GameObject (supports name/instanceId/path)")]
+        [UnitySkill("gameobject_delete", "Delete a GameObject (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object GameObjectDelete(string name = null, int instanceId = 0, string path = null)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -171,72 +171,44 @@ namespace UnitySkills
             return new { success = true, deleted = deletedName };
         }
 
-        [UnitySkill("gameobject_delete_batch", "Delete multiple GameObjects. items: JSON array of strings (names) or objects {name, instanceId, path}")]
+        [UnitySkill("gameobject_delete_batch", "Delete multiple GameObjects. items: JSON array of strings (names) or objects {name, instanceId, path}", TracksWorkflow = true)]
         public static object GameObjectDeleteBatch(string items)
         {
             if (Validate.RequiredJsonArray(items, "items") is object err) return err;
 
             try
             {
-                // Try parsing as array of strings first
-                List<string> stringItems = null;
-                try { stringItems = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(items); } catch {}
-
-                List<BatchDeleteItem> objItems = null;
-                if (stringItems == null)
+                var normalizedItems = NormalizeDeleteBatchItems(items);
+                return BatchExecutor.Execute<BatchDeleteItem>(normalizedItems, item =>
                 {
-                    objItems = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BatchDeleteItem>>(items);
-                }
-                else
-                {
-                    objItems = stringItems.Select(s => new BatchDeleteItem { name = s }).ToList();
-                }
+                    var (go, error) = GameObjectFinder.FindOrError(item.name, item.instanceId, item.path);
+                    if (error != null)
+                        throw new System.Exception("Object not found");
 
-                if (objItems == null || objItems.Count == 0)
-                     return new { error = "items parameter is empty or invalid JSON" };
-
-                var results = new List<object>();
-                int successCount = 0;
-                int failCount = 0;
-
-                foreach (var item in objItems)
-                {
-                    try
-                    {
-                        var (go, error) = GameObjectFinder.FindOrError(item.name, item.instanceId, item.path);
-                        if (error != null)
-                        {
-                            results.Add(new { target = item.name ?? item.path, success = false, error = "Object not found" });
-                            failCount++;
-                            continue;
-                        }
-
-                        string name = go.name;
-                        WorkflowManager.SnapshotObject(go); // Record pre-deletion state
-                        Undo.DestroyObjectImmediate(go);
-                        results.Add(new { target = name, success = true });
-                        successCount++;
-                    }
-                    catch (System.Exception ex)
-                    {
-                        results.Add(new { target = item.name ?? item.path, success = false, error = ex.Message });
-                        failCount++;
-                    }
-                }
-
-                return new
-                {
-                    success = failCount == 0,
-                    totalItems = objItems.Count,
-                    successCount,
-                    failCount,
-                    results
-                };
+                    var deletedName = go.name;
+                    WorkflowManager.SnapshotObject(go);
+                    Undo.DestroyObjectImmediate(go);
+                    return new { target = deletedName, success = true };
+                }, item => item.name ?? item.path ?? item.instanceId.ToString());
             }
             catch (System.Exception ex)
             {
                 return new { error = $"Failed to parse items JSON: {ex.Message}" };
             }
+        }
+
+        private static string NormalizeDeleteBatchItems(string items)
+        {
+            var tokens = Newtonsoft.Json.Linq.JArray.Parse(items);
+            var normalized = tokens.Select(token =>
+            {
+                if (token.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                    return new BatchDeleteItem { name = token.ToObject<string>() };
+
+                return token.ToObject<BatchDeleteItem>();
+            }).ToList();
+
+            return Newtonsoft.Json.JsonConvert.SerializeObject(normalized);
         }
 
         private class BatchDeleteItem
@@ -308,7 +280,7 @@ namespace UnitySkills
             return new { count = list.Length, objects = list };
         }
 
-        [UnitySkill("gameobject_set_transform", "Set transform properties. For UI/RectTransform: use anchorX/Y, pivotX/Y, sizeDeltaX/Y. For 3D: use posX/Y/Z, rotX/Y/Z, scaleX/Y/Z")]
+        [UnitySkill("gameobject_set_transform", "Set transform properties. For UI/RectTransform: use anchorX/Y, pivotX/Y, sizeDeltaX/Y. For 3D: use posX/Y/Z, rotX/Y/Z, scaleX/Y/Z", TracksWorkflow = true)]
         public static object GameObjectSetTransform(
             string name = null, int instanceId = 0, string path = null,
             // World transform (3D objects)
@@ -460,7 +432,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("gameobject_set_transform_batch", "Set transform properties for multiple objects (Efficient). items: JSON array of objects with optional fields (name, posX, rotX, scaleX, etc.)")]
+        [UnitySkill("gameobject_set_transform_batch", "Set transform properties for multiple objects (Efficient). items: JSON array of objects with optional fields (name, posX, rotX, scaleX, etc.)", TracksWorkflow = true)]
         public static object GameObjectSetTransformBatch(string items)
         {
             return BatchExecutor.Execute<BatchTransformItem>(items, item =>
@@ -561,7 +533,7 @@ namespace UnitySkills
             public float? height { get; set; }
         }
 
-        [UnitySkill("gameobject_duplicate", "Duplicate a GameObject (supports name/instanceId/path). Returns: originalName, copyName, copyInstanceId, copyPath")]
+        [UnitySkill("gameobject_duplicate", "Duplicate a GameObject (supports name/instanceId/path). Returns: originalName, copyName, copyInstanceId, copyPath", TracksWorkflow = true)]
         public static object GameObjectDuplicate(string name = null, int instanceId = 0, string path = null)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -612,7 +584,7 @@ namespace UnitySkills
             public string path { get; set; }
         }
 
-        [UnitySkill("gameobject_set_parent", "Set the parent of a GameObject (supports name/instanceId/path)")]
+        [UnitySkill("gameobject_set_parent", "Set the parent of a GameObject (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object GameObjectSetParent(string childName = null, int childInstanceId = 0, string childPath = null, 
             string parentName = null, int parentInstanceId = 0, string parentPath = null)
         {
@@ -672,7 +644,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("gameobject_set_active", "Enable or disable a GameObject (supports name/instanceId/path)")]
+        [UnitySkill("gameobject_set_active", "Enable or disable a GameObject (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object GameObjectSetActive(string name = null, int instanceId = 0, string path = null, bool active = true)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);

@@ -54,7 +54,7 @@ namespace UnitySkills
             "Rewired.",
         };
 
-        [UnitySkill("component_add", "Add a component to a GameObject (supports name/instanceId/path). Works with Cinemachine, TextMeshPro, etc.")]
+        [UnitySkill("component_add", "Add a component to a GameObject (supports name/instanceId/path). Works with Cinemachine, TextMeshPro, etc.", TracksWorkflow = true)]
         public static object ComponentAdd(string name = null, int instanceId = 0, string path = null, string componentType = null)
         {
             if (Validate.Required(componentType, "componentType") is object err) return err;
@@ -97,7 +97,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("component_add_batch", "Add components to multiple GameObjects. items: JSON array of {name, componentType, path}")]
+        [UnitySkill("component_add_batch", "Add components to multiple GameObjects. items: JSON array of {name, componentType, path}", TracksWorkflow = true)]
         public static object ComponentAddBatch(string items)
         {
             return BatchExecutor.Execute<BatchAddComponentItem>(items, item =>
@@ -134,7 +134,7 @@ namespace UnitySkills
             public string componentType { get; set; }
         }
 
-        [UnitySkill("component_remove", "Remove a component from a GameObject (supports name/instanceId/path)")]
+        [UnitySkill("component_remove", "Remove a component from a GameObject (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object ComponentRemove(string name = null, int instanceId = 0, string path = null, string componentType = null, int componentIndex = 0)
         {
             if (Validate.Required(componentType, "componentType") is object err) return err;
@@ -171,7 +171,7 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name, removed = componentType };
         }
 
-        [UnitySkill("component_remove_batch", "Remove components from multiple GameObjects. items: JSON array of {name, componentType, path}")]
+        [UnitySkill("component_remove_batch", "Remove components from multiple GameObjects. items: JSON array of {name, componentType, path}", TracksWorkflow = true)]
         public static object ComponentRemoveBatch(string items)
         {
             return BatchExecutor.Execute<BatchRemoveComponentItem>(items, item =>
@@ -246,7 +246,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("component_set_property", "Set a property/field on a component. Supports Vector2/3/4, Color, references by name/path")]
+        [UnitySkill("component_set_property", "Set a property/field on a component. Supports Vector2/3/4, Color, references by name/path", TracksWorkflow = true)]
         public static object ComponentSetProperty(
             string name = null, int instanceId = 0, string path = null, 
             string componentType = null, string propertyName = null, 
@@ -321,7 +321,7 @@ namespace UnitySkills
             }
         }
 
-        [UnitySkill("component_set_property_batch", "Set properties on multiple components (Efficient). items: JSON array of {name, componentType, propertyName, value, referencePath, referenceName}")]
+        [UnitySkill("component_set_property_batch", "Set properties on multiple components (Efficient). items: JSON array of {name, componentType, propertyName, value, referencePath, referenceName}", TracksWorkflow = true)]
         public static object ComponentSetPropertyBatch(string items)
         {
             return BatchExecutor.Execute<BatchSetPropertyItem>(items, item =>
@@ -893,7 +893,7 @@ namespace UnitySkills
 
         #endregion
 
-        [UnitySkill("component_copy", "Copy a component from one GameObject to another")]
+        [UnitySkill("component_copy", "Copy a component from one GameObject to another", TracksWorkflow = true)]
         public static object ComponentCopy(string sourceName = null, int sourceInstanceId = 0, string sourcePath = null, string targetName = null, int targetInstanceId = 0, string targetPath = null, string componentType = null)
         {
             if (Validate.Required(componentType, "componentType") is object err) return err;
@@ -913,7 +913,7 @@ namespace UnitySkills
             return new { success = true, source = sourceName, target = targetName, componentType };
         }
 
-        [UnitySkill("component_set_enabled", "Enable or disable a component (Behaviour, Renderer, Collider, etc.)")]
+        [UnitySkill("component_set_enabled", "Enable or disable a component (Behaviour, Renderer, Collider, etc.)", TracksWorkflow = true)]
         public static object ComponentSetEnabled(string name = null, int instanceId = 0, string path = null, string componentType = null, bool enabled = true)
         {
             if (Validate.Required(componentType, "componentType") is object err) return err;

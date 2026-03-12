@@ -1,11 +1,12 @@
 ---
 name: unity-script
-description: "C# script management. Use when users want to create, read, or modify C# scripts. Triggers: script, C#, MonoBehaviour, code, class, method, Unity脚本, Unity代码, Unity创建脚本."
+description: "C# script management for creating, reading, and modifying Unity scripts."
 ---
 
 # Unity Script Skills
 
 > **BATCH-FIRST**: Use `script_create_batch` when creating 2+ scripts.
+> **DESIGN-FIRST**: Before creating gameplay scripts, actively consider coupling, performance, and maintainability. In an existing project, load `../project-scout/SKILL.md` first. If the user is asking for architecture or refactoring advice, load `../architecture/SKILL.md` and then `../patterns/SKILL.md`, `../async/SKILL.md`, `../inspector/SKILL.md`, `../performance/SKILL.md`, `../script-roles/SKILL.md`, `../scene-contracts/SKILL.md`, `../testability/SKILL.md`, or `../scriptdesign/SKILL.md` as needed.
 
 ## Skills Overview
 
@@ -19,6 +20,7 @@ description: "C# script management. Use when users want to create, read, or modi
 - `script_find_in_file` - Search in scripts
 - `script_append` - Append content to script
 - `script_get_compile_feedback` - Check compile errors for one script after Unity finishes compiling
+- `create_script()` in `scripts/unity_skills.py` now waits for Unity to come back once and refreshes compile feedback automatically after script creation.
 
 ---
 
@@ -36,7 +38,7 @@ Create a C# script from template.
 
 **Templates**: MonoBehaviour, ScriptableObject, Editor, EditorWindow
 
-**Returns**: `{success, path, className, namespaceName, compilation?}`
+**Returns**: `{success, path, className, namespaceName, designReminder, compilation?}`
 
 `compilation` includes:
 - `isCompiling`
@@ -47,6 +49,11 @@ Create a C# script from template.
 
 ### script_create_batch
 Create multiple scripts in one call.
+
+Before batch creation, decide whether each script should be:
+- a thin `MonoBehaviour` bridge
+- a `ScriptableObject` configuration asset
+- or a plain C# domain/service class generated from a custom template
 
 ```python
 unity_skills.call_skill("script_create_batch", items=[
@@ -142,8 +149,15 @@ unity_skills.call_skill("component_add", name="Player", componentType="MyScript"
 
 1. Use meaningful script names matching class name
 2. Organize scripts in logical folders
-3. Use templates for correct base class
-4. Wait for compilation after creating scripts
-5. After script edits, call `script_get_compile_feedback` and fix reported errors
-6. Use regex search for complex patterns
-7. **Use batch creation to minimize Domain Reloads**
+3. Before creating gameplay code, decide the class role first: MonoBehaviour, ScriptableObject, or plain C# helper/service
+4. Actively reduce coupling: prefer explicit dependencies, small responsibilities, and event-driven notifications over hidden globals
+5. Actively consider performance: avoid unnecessary `Update`, repeated `Find`, reflection in hot paths, and avoidable allocations
+6. Actively consider maintainability: clear naming, explicit ownership, Inspector-friendly fields, and simple module boundaries
+7. Avoid giant boilerplate/template dumps. Start from the smallest structure that solves the current need
+8. Do not default to UniTask or a global event bus unless the project context justifies them
+9. Avoid cryptic abbreviations in class, field, and method names unless they are already a project convention
+10. Use templates for correct base class
+11. Wait for compilation after creating scripts
+12. After script edits, call `script_get_compile_feedback` and fix reported errors
+13. Use regex search for complex patterns
+14. **Use batch creation to minimize Domain Reloads**

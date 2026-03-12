@@ -18,65 +18,8 @@ namespace UnitySkills
         private static string _cachedManifest;
         private static readonly object _initLock = new object();
 
-        // Skills that trigger auto-workflow recording (modification operations)
-        private static readonly HashSet<string> _workflowTrackedSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "gameobject_create", "gameobject_delete", "gameobject_rename",
-            "gameobject_set_transform", "gameobject_duplicate", "gameobject_set_parent",
-            "gameobject_set_active", "gameobject_create_batch", "gameobject_delete_batch",
-            "gameobject_rename_batch", "gameobject_set_transform_batch",
-            "component_add", "component_remove", "component_set_property",
-            "component_add_batch", "component_remove_batch", "component_set_property_batch",
-            "material_create", "material_assign", "material_set_color", "material_set_texture",
-            "material_set_emission", "material_set_float", "material_set_shader",
-            "material_create_batch", "material_assign_batch", "material_set_colors_batch",
-            "light_create", "light_set_properties", "light_set_enabled",
-            "prefab_create", "prefab_instantiate", "prefab_apply", "prefab_unpack",
-            "prefab_instantiate_batch",
-            "ui_create_canvas", "ui_create_panel", "ui_create_button", "ui_create_text",
-            "ui_create_image", "ui_create_inputfield", "ui_create_slider", "ui_create_toggle",
-            "ui_create_batch", "ui_set_text", "ui_set_anchor", "ui_set_rect",
-            "script_create", "script_delete", "script_create_batch",
-            "script_replace", "script_rename", "script_move",
-            "terrain_create", "terrain_set_height", "terrain_set_heights_batch", "terrain_paint_texture",
-            "asset_import", "asset_delete", "asset_move", "asset_duplicate",
-            "asset_set_labels",
-            "scene_create", "scene_save",
-            "camera_create", "camera_set_properties", "camera_set_culling_mask", "camera_set_orthographic",
-            "physics_create_material", "physics_set_material", "physics_set_layer_collision", "physics_set_gravity",
-            "timeline_create", "timeline_add_audio_track", "timeline_add_animation_track",
-            "timeline_add_activation_track", "timeline_add_control_track", "timeline_add_signal_track",
-            "timeline_remove_track", "timeline_add_clip", "timeline_set_duration", "timeline_set_binding",
-            "texture_set_import_settings", "model_set_import_settings",
-            "audio_set_import_settings", "sprite_set_import_settings",
-            "navmesh_add_agent", "navmesh_set_agent", "navmesh_add_obstacle", "navmesh_set_obstacle",
-            "navmesh_set_area_cost",
-            "shader_create", "shader_delete", "shader_create_urp", "shader_set_global_keyword",
-            "cleaner_delete_assets", "cleaner_delete_empty_folders", "cleaner_fix_missing_scripts",
-            "scriptableobject_create", "scriptableobject_set", "scriptableobject_set_batch",
-            "scriptableobject_delete", "scriptableobject_import_json",
-            "event_add_listener", "event_remove_listener", "event_clear_listeners",
-            "event_set_listener_state", "event_add_listener_batch", "event_copy_listeners",
-            "smart_scene_layout", "smart_reference_bind", "smart_align_to_ground",
-            "smart_distribute", "smart_snap_to_grid", "smart_randomize_transform", "smart_replace_objects",
-            "console_set_pause_on_error", "console_set_collapse", "console_set_clear_on_play",
-            "debug_set_defines",
-            "project_add_tag", "project_set_quality_level",
-            "optimize_set_static_flags", "optimize_audio_compression", "optimize_set_lod_group",
-            "audio_add_source", "audio_set_source_properties", "audio_create_mixer",
-            "model_set_animation_clips", "model_set_rig",
-            "texture_set_type", "texture_set_platform_settings", "texture_set_sprite_settings",
-            "light_add_probe_group", "light_add_reflection_probe",
-            "animator_add_transition", "animator_add_state",
-            "component_copy", "component_set_enabled",
-            "prefab_create_variant",
-            "uitk_create_uss", "uitk_create_uxml", "uitk_write_file", "uitk_delete_file",
-            "uitk_create_document", "uitk_set_document", "uitk_create_panel_settings",
-            "uitk_set_panel_settings",
-            "uitk_create_from_template", "uitk_create_batch"
-        };
-
-        // JSON 序列化设置，禁用 Unicode 转义确保中文正确显示
+        private static HashSet<string> _workflowTrackedSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Keep Unicode readable in JSON responses instead of forcing escaped sequences.
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
             StringEscapeHandling = StringEscapeHandling.Default
@@ -88,6 +31,7 @@ namespace UnitySkills
             public string Description;
             public MethodInfo Method;
             public ParameterInfo[] Parameters;
+            public bool TracksWorkflow;
         }
 
         public static void Initialize()
@@ -98,6 +42,7 @@ namespace UnitySkills
                 if (_initialized) return;
 
                 var skills = new Dictionary<string, SkillInfo>(StringComparer.OrdinalIgnoreCase);
+                var trackedSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 var allTypes = AppDomain.CurrentDomain.GetAssemblies()
                     .Where(a => !a.IsDynamic)
@@ -118,13 +63,17 @@ namespace UnitySkills
                                 Name = name,
                                 Description = attr.Description ?? "",
                                 Method = method,
-                                Parameters = method.GetParameters()
+                                Parameters = method.GetParameters(),
+                                TracksWorkflow = attr.TracksWorkflow
                             };
+                            if (attr.TracksWorkflow)
+                                trackedSkills.Add(name);
                         }
                     }
                 }
 
                 _skills = skills; // Atomic assignment of fully-built dictionary
+                _workflowTrackedSkills = trackedSkills;
                 _initialized = true;
                 SkillsLogger.Log($"Discovered {_skills.Count} skills");
             }
@@ -140,10 +89,12 @@ namespace UnitySkills
                 version = SkillsLogger.Version,
                 unityVersion = Application.unityVersion,
                 totalSkills = _skills.Count,
+                workflowTrackedSkills = _workflowTrackedSkills.OrderBy(name => name).ToArray(),
                 skills = _skills.Values.Select(s => new
                 {
                     name = s.Name,
                     description = s.Description,
+                    tracksWorkflow = s.TracksWorkflow,
                     parameters = s.Parameters.Select(p => new
                     {
                         name = p.Name,
@@ -209,7 +160,7 @@ namespace UnitySkills
                 int undoGroup = UnityEditor.Undo.GetCurrentGroup();
 
                 // ========== AUTO WORKFLOW RECORDING ==========
-                if (_workflowTrackedSkills.Contains(name) && !WorkflowManager.IsRecording)
+                if (skill.TracksWorkflow && !WorkflowManager.IsRecording)
                 {
                     var desc = $"{name} - {(json?.Length > 80 ? json.Substring(0, 80) + "..." : json ?? "")}";
                     WorkflowManager.BeginTask(name, desc);
@@ -247,37 +198,17 @@ namespace UnitySkills
                 // Commit transaction
                 UnityEditor.Undo.CollapseUndoOperations(undoGroup);
 
-                // ========== 统一错误响应检测 ==========
-                if (result != null)
+                // Return a normalized error payload when a skill reports a logical failure.
+                if (SkillResultHelper.TryGetError(result, out string errorText))
                 {
-                    // Use reflection instead of JObject.FromObject to avoid double serialization
-                    var resultType = result.GetType();
-                    var errorProp = resultType.GetProperty("error");
-                    var successProp = resultType.GetProperty("success");
-
-                    if (errorProp != null)
+                    return JsonConvert.SerializeObject(new
                     {
-                        var errorVal = errorProp.GetValue(result);
-                        if (errorVal != null)
-                        {
-                            bool hasSuccessProp = successProp != null;
-                            bool successFalse = hasSuccessProp && successProp.GetValue(result) is bool b && !b;
-
-                            // 模式A: { error = "..." } 或 模式B: { success = false, error = "..." }
-                            if (!hasSuccessProp || successFalse)
-                            {
-                                return JsonConvert.SerializeObject(new
-                                {
-                                    status = "error",
-                                    errorCode = "SKILL_ERROR",
-                                    error = errorVal.ToString(),
-                                    skill = name
-                                }, _jsonSettings);
-                            }
-                        }
-                    }
+                        status = "error",
+                        errorCode = "SKILL_ERROR",
+                        error = errorText,
+                        skill = name
+                    }, _jsonSettings);
                 }
-                // =========================================
 
                 if (!verbose && result != null)
                 {
@@ -348,6 +279,7 @@ namespace UnitySkills
                 _initialized = false;
                 _skills = null;
                 _cachedManifest = null;
+                _workflowTrackedSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
             Initialize();
         }
@@ -469,5 +401,66 @@ namespace UnitySkills
             }
         }
     }
-}
 
+    internal static class SkillResultHelper
+    {
+        public static bool TryGetError(object result, out string errorText)
+        {
+            errorText = null;
+            if (result == null)
+                return false;
+
+            if (!TryGetMemberValue(result, "error", out object errorValue) || errorValue == null)
+                return false;
+
+            if (TryGetMemberValue(result, "success", out object successValue) && successValue is bool successBool && successBool)
+                return false;
+
+            errorText = errorValue.ToString();
+            return !string.IsNullOrWhiteSpace(errorText);
+        }
+
+        public static bool TryGetMemberValue(object result, string memberName, out object value)
+        {
+            value = null;
+            if (result == null || string.IsNullOrEmpty(memberName))
+                return false;
+
+            if (result is JObject jsonObject &&
+                jsonObject.TryGetValue(memberName, StringComparison.OrdinalIgnoreCase, out JToken token))
+            {
+                value = token.Type == JTokenType.Null ? null : token.ToObject<object>();
+                return true;
+            }
+
+            if (result is IDictionary<string, object> dictionary)
+            {
+                foreach (var pair in dictionary)
+                {
+                    if (string.Equals(pair.Key, memberName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        value = pair.Value;
+                        return true;
+                    }
+                }
+            }
+
+            var resultType = result.GetType();
+            var property = resultType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (property != null)
+            {
+                value = property.GetValue(result);
+                return true;
+            }
+
+            var field = resultType.GetField(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (field != null)
+            {
+                value = field.GetValue(result);
+                return true;
+            }
+
+            return false;
+        }
+    }
+}

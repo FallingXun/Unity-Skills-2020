@@ -75,7 +75,7 @@ namespace UnitySkills
             return new { error = "No active Scene View found" };
         }
 
-        [UnitySkill("camera_create", "Create a new Game Camera")]
+        [UnitySkill("camera_create", "Create a new Game Camera", TracksWorkflow = true)]
         public static object CameraCreate(string name = "New Camera", float x = 0, float y = 1, float z = -10)
         {
             var go = new GameObject(name);
@@ -106,7 +106,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("camera_set_properties", "Set Game Camera properties (FOV, clip planes, clear flags, background color, depth)")]
+        [UnitySkill("camera_set_properties", "Set Game Camera properties (FOV, clip planes, clear flags, background color, depth)", TracksWorkflow = true)]
         public static object CameraSetProperties(
             string name = null, int instanceId = 0, string path = null,
             float? fieldOfView = null, float? nearClipPlane = null, float? farClipPlane = null,
@@ -132,7 +132,7 @@ namespace UnitySkills
             return new { success = true, name = go.name };
         }
 
-        [UnitySkill("camera_set_culling_mask", "Set Game Camera culling mask by layer names (comma-separated)")]
+        [UnitySkill("camera_set_culling_mask", "Set Game Camera culling mask by layer names (comma-separated)", TracksWorkflow = true)]
         public static object CameraSetCullingMask(string layerNames, string name = null, int instanceId = 0, string path = null)
         {
             var (go, err) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -178,7 +178,7 @@ namespace UnitySkills
             return new { success = true, path = savePath, width, height };
         }
 
-        [UnitySkill("camera_set_orthographic", "Switch Game Camera between orthographic and perspective mode")]
+        [UnitySkill("camera_set_orthographic", "Switch Game Camera between orthographic and perspective mode", TracksWorkflow = true)]
         public static object CameraSetOrthographic(bool orthographic, float? orthographicSize = null, string name = null, int instanceId = 0, string path = null)
         {
             var (go, err) = GameObjectFinder.FindOrError(name, instanceId, path);

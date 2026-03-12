@@ -1,6 +1,6 @@
 ---
 name: unity-skills-index
-description: "Index of all Unity Skills modules. Use when users want to browse available skills or understand the module structure. Triggers: index, modules, skills, reference, documentation, 模块, 技能列表, 文档."
+description: "Index of all Unity Skills modules for browsing available modules and documentation."
 ---
 
 # Unity Skills - Module Index
@@ -50,6 +50,26 @@ This folder contains detailed documentation for each skill module. For quick ref
 | [history](./history/SKILL.md) | Undo/redo history | No |
 | [scriptableobject](./scriptableobject/SKILL.md) | ScriptableObject management | No |
 
+## Advisory Design Modules
+
+These modules provide architecture and coding guidance. They are optional and should be loaded when the user asks for design advice, refactoring guidance, pattern selection, or better script quality.
+
+| Module | Description | When To Use |
+|--------|-------------|-------------|
+| [project-scout](./project-scout/SKILL.md) | Inspect current project baseline and constraints | Before proposing architecture changes in an existing project |
+| [architecture](./architecture/SKILL.md) | Overall mini-game/system architecture planning | Before creating lots of gameplay scripts or when defining module boundaries |
+| [adr](./adr/SKILL.md) | Short architecture decision records | When tradeoffs need to stay stable across multiple turns |
+| [performance](./performance/SKILL.md) | Unity-specific performance red-flag review | When reviewing hot paths, Update usage, allocations, pooling, scene lookups |
+| [asmdef](./asmdef/SKILL.md) | Assembly boundary and dependency planning | When project scale justifies clearer compile-time boundaries |
+| [blueprints](./blueprints/SKILL.md) | Minimal architecture blueprints for common mini-games | When starting a new small game or gameplay vertical slice |
+| [script-roles](./script-roles/SKILL.md) | Decide class roles before code generation | Before batch-creating gameplay scripts |
+| [scene-contracts](./scene-contracts/SKILL.md) | Scene composition and reference contract planning | When defining required scene objects, bootstrap, and validation |
+| [testability](./testability/SKILL.md) | Testability and pure-C# extraction guidance | When deciding what logic should be isolated from Unity APIs |
+| [patterns](./patterns/SKILL.md) | Pattern selection for SO, events, interfaces, pooling, states | When deciding whether a pattern is justified |
+| [async](./async/SKILL.md) | Async and lifecycle strategy | When choosing between `Update`, coroutine, UniTask, timers, cleanup |
+| [inspector](./inspector/SKILL.md) | Inspector-facing API and serialization guidance | When designing fields, attributes, validation, authoring UX |
+| [scriptdesign](./scriptdesign/SKILL.md) | Script-level quality review | When generating or reviewing scripts for coupling/performance/maintainability |
+
 ## Batch-First Rule
 
 > When operating on **2 or more objects**, ALWAYS use `*_batch` skills instead of calling single-object skills multiple times.
@@ -67,8 +87,9 @@ unity_skills.call_skill("gameobject_create_batch",
 )
 ```
 
-## Total Skills: 277
+## Coverage Summary
 
-- Single-object skills: ~200
-- Batch skills: ~30
-- Query/utility skills: ~47
+- Unity REST skills: 447
+- Advisory design modules: 13
+- Core runtime modules: 37
+- Total documented module folders: 50

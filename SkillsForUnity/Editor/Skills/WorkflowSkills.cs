@@ -379,6 +379,7 @@ namespace UnitySkills
                 isRecording = WorkflowManager.IsRecording,
                 currentTaskId = WorkflowManager.CurrentTask?.id,
                 currentTaskTag = WorkflowManager.CurrentTask?.tag,
+                currentTaskDescription = WorkflowManager.CurrentTask?.description,
                 snapshotCount = WorkflowManager.CurrentTask?.snapshots.Count ?? 0
             };
         }

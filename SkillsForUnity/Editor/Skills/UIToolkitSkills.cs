@@ -14,9 +14,10 @@ namespace UnitySkills
     /// </summary>
     public static class UIToolkitSkills
     {
+        private static readonly System.Text.UTF8Encoding Utf8NoBom = new System.Text.UTF8Encoding(false);
         // ============================ FILE OPERATIONS ============================
 
-        [UnitySkill("uitk_create_uss", "Create a USS stylesheet file for UI Toolkit")]
+        [UnitySkill("uitk_create_uss", "Create a USS stylesheet file for UI Toolkit", TracksWorkflow = true)]
         public static object UitkCreateUss(string savePath, string content = null)
         {
             if (Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
@@ -28,7 +29,7 @@ namespace UnitySkills
                 Directory.CreateDirectory(dir);
 
             var fileContent = content ?? DefaultUss(Path.GetFileNameWithoutExtension(savePath));
-            File.WriteAllText(savePath, fileContent, System.Text.Encoding.UTF8);
+            File.WriteAllText(savePath, fileContent, Utf8NoBom);
             AssetDatabase.ImportAsset(savePath);
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(savePath);
@@ -37,7 +38,7 @@ namespace UnitySkills
             return new { success = true, path = savePath, lines = fileContent.Split('\n').Length };
         }
 
-        [UnitySkill("uitk_create_uxml", "Create a UXML layout file for UI Toolkit")]
+        [UnitySkill("uitk_create_uxml", "Create a UXML layout file for UI Toolkit", TracksWorkflow = true)]
         public static object UitkCreateUxml(string savePath, string content = null, string ussPath = null)
         {
             if (Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
@@ -56,7 +57,7 @@ namespace UnitySkills
                 relUss = (uxmlDir == ussDir) ? Path.GetFileName(ussPath) : ussPath;
             }
             string fileContent = content ?? (relUss != null ? DefaultUxml(relUss) : DefaultUxml());
-            File.WriteAllText(savePath, fileContent, System.Text.Encoding.UTF8);
+            File.WriteAllText(savePath, fileContent, Utf8NoBom);
             AssetDatabase.ImportAsset(savePath);
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(savePath);
@@ -72,7 +73,7 @@ namespace UnitySkills
             if (!File.Exists(filePath))
                 return new { error = $"File not found: {filePath}" };
 
-            var content = File.ReadAllText(filePath);
+            var content = File.ReadAllText(filePath, System.Text.Encoding.UTF8);
             return new
             {
                 path = filePath,
@@ -82,7 +83,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("uitk_write_file", "Write or overwrite a USS or UXML file")]
+        [UnitySkill("uitk_write_file", "Write or overwrite a USS or UXML file", TracksWorkflow = true)]
         public static object UitkWriteFile(string filePath, string content)
         {
             if (Validate.SafePath(filePath, "filePath") is object pathErr) return pathErr;
@@ -98,13 +99,13 @@ namespace UnitySkills
                 if (existing != null) WorkflowManager.SnapshotObject(existing);
             }
 
-            File.WriteAllText(filePath, content, System.Text.Encoding.UTF8);
+            File.WriteAllText(filePath, content, Utf8NoBom);
             AssetDatabase.ImportAsset(filePath);
 
             return new { success = true, path = filePath, lines = content.Split('\n').Length };
         }
 
-        [UnitySkill("uitk_delete_file", "Delete a USS or UXML file")]
+        [UnitySkill("uitk_delete_file", "Delete a USS or UXML file", TracksWorkflow = true)]
         public static object UitkDeleteFile(string filePath)
         {
             if (Validate.SafePath(filePath, "filePath", isDelete: true) is object pathErr) return pathErr;
@@ -155,7 +156,7 @@ namespace UnitySkills
 
         // ============================ SCENE OPERATIONS ============================
 
-        [UnitySkill("uitk_create_document", "Create a GameObject with UIDocument component in the scene")]
+        [UnitySkill("uitk_create_document", "Create a GameObject with UIDocument component in the scene", TracksWorkflow = true)]
         public static object UitkCreateDocument(
             string name = "UIDocument",
             string uxmlPath = null,
@@ -227,7 +228,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("uitk_set_document", "Set UIDocument properties on an existing scene GameObject")]
+        [UnitySkill("uitk_set_document", "Set UIDocument properties on an existing scene GameObject", TracksWorkflow = true)]
         public static object UitkSetDocument(
             string name = null,
             int instanceId = 0,
@@ -275,7 +276,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("uitk_create_panel_settings", "Create a PanelSettings asset for UI Toolkit")]
+        [UnitySkill("uitk_create_panel_settings", "Create a PanelSettings asset for UI Toolkit", TracksWorkflow = true)]
         public static object UitkCreatePanelSettings(
             string savePath,
             string scaleMode = "ScaleWithScreenSize",
@@ -374,7 +375,7 @@ namespace UnitySkills
             var cc = settings.colorClearValue;
 
 #if UNITY_6000_0_OR_NEWER
-            // renderMode, colliderUpdateMode, colliderIsTrigger are internal — read via SerializedObject
+            // renderMode, colliderUpdateMode, and colliderIsTrigger are internal; read them via SerializedObject.
             var so = new SerializedObject(settings);
             var rmProp = so.FindProperty("m_RenderMode");
             int rmVal = rmProp != null ? rmProp.intValue : 0;
@@ -451,7 +452,7 @@ namespace UnitySkills
 #endif
         }
 
-        [UnitySkill("uitk_set_panel_settings", "Modify properties on an existing PanelSettings asset")]
+        [UnitySkill("uitk_set_panel_settings", "Modify properties on an existing PanelSettings asset", TracksWorkflow = true)]
         public static object UitkSetPanelSettings(
             string assetPath,
             string scaleMode = null,
@@ -566,7 +567,7 @@ namespace UnitySkills
 
             try
             {
-                var content = File.ReadAllText(filePath);
+                var content = File.ReadAllText(filePath, System.Text.Encoding.UTF8);
                 var xdoc = XDocument.Parse(content);
                 var hierarchy = ParseXmlNode(xdoc.Root, 0, depth);
                 return new { path = filePath, hierarchy };
@@ -579,7 +580,7 @@ namespace UnitySkills
 
         // ============================ TEMPLATES ============================
 
-        [UnitySkill("uitk_create_from_template", "Create a UXML+USS file pair from a template (menu/hud/dialog/settings/inventory/list)")]
+        [UnitySkill("uitk_create_from_template", "Create a UXML+USS file pair from a template (menu/hud/dialog/settings/inventory/list)", TracksWorkflow = true)]
         public static object UitkCreateFromTemplate(string template, string savePath, string name = null)
         {
             if (Validate.Required(template, "template") is object tErr) return tErr;
@@ -601,8 +602,8 @@ namespace UnitySkills
 
             GetTemplateContent(template.ToLower(), uiName, $"{uiName}.uss", out var ussContent, out var uxmlContent);
 
-            File.WriteAllText(ussFilePath, ussContent, System.Text.Encoding.UTF8);
-            File.WriteAllText(uxmlFilePath, uxmlContent, System.Text.Encoding.UTF8);
+            File.WriteAllText(ussFilePath, ussContent, Utf8NoBom);
+            File.WriteAllText(uxmlFilePath, uxmlContent, Utf8NoBom);
             AssetDatabase.ImportAsset(ussFilePath);
             AssetDatabase.ImportAsset(uxmlFilePath);
 
@@ -616,7 +617,7 @@ namespace UnitySkills
 
         // ============================ BATCH ============================
 
-        [UnitySkill("uitk_create_batch", "Batch create USS/UXML files. items: JSON array of {type,savePath,content?,ussPath?}")]
+        [UnitySkill("uitk_create_batch", "Batch create USS/UXML files. items: JSON array of {type,savePath,content?,ussPath?}", TracksWorkflow = true)]
         public static object UitkCreateBatch(string items)
         {
             return BatchExecutor.Execute<UitkFileItem>(
@@ -706,7 +707,7 @@ namespace UnitySkills
                 rsppu?.SetValue(settings, referenceSpritePixelsPerUnit.Value);
             }
 
-            // --- Dynamic Atlas Settings (struct: read → modify → write back) ---
+            // --- Dynamic Atlas Settings (struct: read -> modify -> write back) ---
             if (dynamicAtlasMinSize.HasValue || dynamicAtlasMaxSize.HasValue ||
                 dynamicAtlasMaxSubTextureSize.HasValue || !string.IsNullOrEmpty(dynamicAtlasFilters))
             {
@@ -737,7 +738,7 @@ namespace UnitySkills
             if (vertexBudget.HasValue)     settings.vertexBudget = (uint)vertexBudget.Value;
             if (textureSlotCount.HasValue) settings.textureSlotCount = (TextureSlotCount)textureSlotCount.Value;
 
-            // renderMode, colliderUpdateMode, colliderIsTrigger are internal — use SerializedObject
+            // renderMode, colliderUpdateMode, and colliderIsTrigger are internal; update them via SerializedObject.
             if (!string.IsNullOrEmpty(renderMode) || !string.IsNullOrEmpty(colliderUpdateMode) || colliderIsTrigger.HasValue)
             {
                 var so = new SerializedObject(settings);
@@ -791,7 +792,7 @@ namespace UnitySkills
 
             var childElements = element.Elements().ToArray();
             if (currentDepth >= maxDepth && childElements.Length > 0)
-                return new { tag, attributes = attrs, children = new[] { new { note = $"[{childElements.Length} children — truncated at depth {maxDepth}]" } } };
+                return new { tag, attributes = attrs, children = new[] { new { note = $"[{childElements.Length} children; truncated at depth {maxDepth}]" } } };
 
             var children = childElements
                 .Select(c => ParseXmlNode(c, currentDepth + 1, maxDepth))

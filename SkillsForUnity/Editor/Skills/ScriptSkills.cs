@@ -3,6 +3,7 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace UnitySkills
@@ -13,8 +14,9 @@ namespace UnitySkills
     public static class ScriptSkills
     {
         private const int DefaultDiagnosticLimit = 20;
+        private static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(false);
 
-        [UnitySkill("script_create", "Create a new C# script. Optional: namespace")]
+        [UnitySkill("script_create", "Create a new C# script. Before generating gameplay scripts, actively consider coupling, performance, and maintainability. Optional: namespace", TracksWorkflow = true)]
         public static object ScriptCreate(
             string scriptName = null,
             string name = null,
@@ -30,6 +32,12 @@ namespace UnitySkills
             if (HasPathSeparators(scriptName))
                 return new { error = "scriptName must not contain path separators" };
 
+            if (IsEditorOnlyTemplate(template) &&
+                string.Equals(folder, "Assets/Scripts", System.StringComparison.OrdinalIgnoreCase))
+            {
+                folder = "Assets/Editor";
+            }
+
             if (!string.IsNullOrEmpty(folder) && Validate.SafePath(folder, "folder") is object folderErr) return folderErr;
 
             if (!Directory.Exists(folder))
@@ -39,68 +47,37 @@ namespace UnitySkills
             if (File.Exists(path))
                 return new { error = $"Script already exists: {path}" };
 
-            string content = template;
-            if (string.IsNullOrEmpty(content))
-            {
-                content = @"using UnityEngine;
-
-namespace {NAMESPACE}
-{
-    public class {CLASS} : MonoBehaviour
-    {
-        void Start()
-        {
-        }
-
-        void Update()
-        {
-        }
-    }
-}
-";
-
-                if (string.IsNullOrEmpty(namespaceName))
-                {
-                    content = @"using UnityEngine;
-
-public class {CLASS} : MonoBehaviour
-{
-    void Start()
-    {
-    }
-
-    void Update()
-    {
-    }
-}
-";
-                }
-            }
+            string content = ResolveTemplate(template, namespaceName);
 
             content = content.Replace("{CLASS}", scriptName);
             content = content.Replace("{NAMESPACE}", string.IsNullOrEmpty(namespaceName) ? "DefaultNamespace" : namespaceName);
 
-            File.WriteAllText(path, content);
+            File.WriteAllText(path, content, Utf8NoBom);
             AssetDatabase.ImportAsset(path);
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
-            if (asset != null) WorkflowManager.SnapshotObject(asset, SnapshotType.Created);
+            if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
 
             var result = CreateScriptMutationResult(path, checkCompile, diagnosticLimit);
             result["className"] = scriptName;
             result["namespaceName"] = namespaceName;
+            result["designReminder"] = "Before filling in gameplay logic, actively consider coupling, performance, and maintainability. Prefer clear responsibilities, explicit dependencies, avoid unnecessary Update-driven logic, and only introduce heavier patterns such as UniTask or global event systems when clearly justified.";
             return result;
         }
 
-        [UnitySkill("script_create_batch", "Create multiple scripts (Efficient). items: JSON array of {scriptName, folder, template, namespace}")]
+        [UnitySkill("script_create_batch", "Create multiple scripts efficiently. Before batch-generating gameplay scripts, actively consider coupling, performance, and maintainability for each class role. items: JSON array of {scriptName, folder, template, namespace}", TracksWorkflow = true)]
         public static object ScriptCreateBatch(string items)
         {
             return BatchExecutor.Execute<BatchScriptItem>(items, item =>
             {
-                var result = ScriptCreate(item.scriptName ?? item.name, null, item.folder ?? "Assets/Scripts", item.template, item.namespaceName);
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(result);
-                if (json.Contains("\"error\""))
-                    throw new System.Exception(((dynamic)result).error);
+                var result = ScriptCreate(
+                    item.scriptName ?? item.name,
+                    null,
+                    item.folder ?? "Assets/Scripts",
+                    item.template,
+                    item.namespaceName ?? item.@namespace);
+                if (SkillResultHelper.TryGetError(result, out string errorText))
+                    throw new System.Exception(errorText);
                 return result;
             }, item => item.scriptName ?? item.name);
         }
@@ -112,6 +89,7 @@ public class {CLASS} : MonoBehaviour
             public string folder { get; set; }
             public string template { get; set; }
             public string namespaceName { get; set; }
+            public string @namespace { get; set; }
         }
 
         [UnitySkill("script_read", "Read the contents of a script")]
@@ -121,16 +99,16 @@ public class {CLASS} : MonoBehaviour
             if (!File.Exists(scriptPath))
                 return new { error = $"Script not found: {scriptPath}" };
 
-            var content = File.ReadAllText(scriptPath);
+            var content = File.ReadAllText(scriptPath, System.Text.Encoding.UTF8);
             return new { path = NormalizePath(scriptPath), lines = content.Split('\n').Length, content };
         }
 
-        [UnitySkill("script_delete", "Delete a script file")]
+        [UnitySkill("script_delete", "Delete a script file", TracksWorkflow = true)]
         public static object ScriptDelete(string scriptPath)
         {
+            if (Validate.SafePath(scriptPath, "scriptPath", isDelete: true) is object pathErr) return pathErr;
             if (!File.Exists(scriptPath))
                 return new { error = $"Script not found: {scriptPath}" };
-            if (Validate.SafePath(scriptPath, "scriptPath", isDelete: true) is object pathErr) return pathErr;
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(scriptPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
@@ -143,7 +121,7 @@ public class {CLASS} : MonoBehaviour
             };
             ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                 result,
-                $"脚本资源已删除: {NormalizePath(scriptPath)}。Unity 可能短暂重载脚本域。",
+                $"Script asset deleted: {NormalizePath(scriptPath)}. Unity may briefly reload the script domain.",
                 alwaysInclude: true);
             return result;
         }
@@ -183,12 +161,12 @@ public class {CLASS} : MonoBehaviour
             return new { pattern, matchCount = results.Count, matches = results };
         }
 
-        [UnitySkill("script_append", "Append content to a script")]
+        [UnitySkill("script_append", "Append content to a script", TracksWorkflow = true)]
         public static object ScriptAppend(string scriptPath, string content, int atLine = -1, bool checkCompile = true, int diagnosticLimit = DefaultDiagnosticLimit)
         {
+            if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
             if (!File.Exists(scriptPath))
                 return new { error = $"Script not found: {scriptPath}" };
-            if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(scriptPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
@@ -205,22 +183,22 @@ public class {CLASS} : MonoBehaviour
                 lines.Insert(atLine, content);
             }
 
-            File.WriteAllLines(scriptPath, lines);
+            File.WriteAllLines(scriptPath, lines, Utf8NoBom);
             AssetDatabase.ImportAsset(scriptPath);
             return CreateScriptMutationResult(scriptPath, checkCompile, diagnosticLimit);
         }
 
-        [UnitySkill("script_replace", "Find and replace content in a script file")]
+        [UnitySkill("script_replace", "Find and replace content in a script file", TracksWorkflow = true)]
         public static object ScriptReplace(string scriptPath, string find, string replace, bool isRegex = false, bool checkCompile = true, int diagnosticLimit = DefaultDiagnosticLimit)
         {
+            if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
             if (!File.Exists(scriptPath))
                 return new { error = $"Script not found: {scriptPath}" };
-            if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(scriptPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
 
-            var content = File.ReadAllText(scriptPath);
+            var content = File.ReadAllText(scriptPath, System.Text.Encoding.UTF8);
             string newContent = isRegex
                 ? Regex.Replace(content, find, replace, RegexOptions.None, System.TimeSpan.FromSeconds(2))
                 : content.Replace(find, replace);
@@ -228,7 +206,7 @@ public class {CLASS} : MonoBehaviour
                 ? Regex.Matches(content, find, RegexOptions.None, System.TimeSpan.FromSeconds(2)).Count
                 : (content.Length - content.Replace(find, "").Length) / (find.Length > 0 ? find.Length : 1);
 
-            File.WriteAllText(scriptPath, newContent);
+            File.WriteAllText(scriptPath, newContent, Utf8NoBom);
             AssetDatabase.ImportAsset(scriptPath);
 
             var result = CreateScriptMutationResult(scriptPath, checkCompile, diagnosticLimit);
@@ -279,11 +257,11 @@ public class {CLASS} : MonoBehaviour
             };
         }
 
-        [UnitySkill("script_rename", "Rename a script file")]
+        [UnitySkill("script_rename", "Rename a script file", TracksWorkflow = true)]
         public static object ScriptRename(string scriptPath, string newName, bool checkCompile = true, int diagnosticLimit = DefaultDiagnosticLimit)
         {
-            if (!File.Exists(scriptPath)) return new { error = $"Script not found: {scriptPath}" };
             if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
+            if (!File.Exists(scriptPath)) return new { error = $"Script not found: {scriptPath}" };
             if (Validate.Required(newName, "newName") is object newNameErr) return newNameErr;
             if (HasPathSeparators(newName))
                 return new { error = "newName must not contain path separators" };
@@ -301,11 +279,11 @@ public class {CLASS} : MonoBehaviour
             return result;
         }
 
-        [UnitySkill("script_move", "Move a script to a new folder")]
+        [UnitySkill("script_move", "Move a script to a new folder", TracksWorkflow = true)]
         public static object ScriptMove(string scriptPath, string newFolder, bool checkCompile = true, int diagnosticLimit = DefaultDiagnosticLimit)
         {
-            if (!File.Exists(scriptPath)) return new { error = $"Script not found: {scriptPath}" };
             if (Validate.SafePath(scriptPath, "scriptPath") is object pathErr) return pathErr;
+            if (!File.Exists(scriptPath)) return new { error = $"Script not found: {scriptPath}" };
             if (Validate.SafePath(newFolder, "newFolder") is object folderErr) return folderErr;
 
             if (!Directory.Exists(newFolder)) Directory.CreateDirectory(newFolder);
@@ -345,7 +323,7 @@ public class {CLASS} : MonoBehaviour
 
             ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                 result,
-                $"脚本资源已变更: {NormalizePath(scriptPath)}。Unity 可能短暂重载脚本域。",
+                $"Script asset changed: {NormalizePath(scriptPath)}. Unity may briefly reload the script domain.",
                 alwaysInclude: true);
 
             return result;
@@ -415,6 +393,87 @@ public class {CLASS} : MonoBehaviour
         private static bool HasPathSeparators(string value)
         {
             return value.Contains("/") || value.Contains("\\") || value.Contains("..");
+        }
+
+        private static string ResolveTemplate(string template, string namespaceName)
+        {
+            if (string.IsNullOrWhiteSpace(template) ||
+                string.Equals(template, "MonoBehaviour", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return WrapInNamespace(namespaceName, @"using UnityEngine;
+
+public class {CLASS} : MonoBehaviour
+{
+}
+");
+            }
+
+            if (string.Equals(template, "ScriptableObject", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return WrapInNamespace(namespaceName, @"using UnityEngine;
+
+[CreateAssetMenu(fileName = ""{CLASS}"", menuName = ""Game/{CLASS}"")]
+public class {CLASS} : ScriptableObject
+{
+}
+");
+            }
+
+            if (string.Equals(template, "Editor", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return WrapInNamespace(namespaceName, @"using UnityEditor;
+
+public class {CLASS} : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector();
+    }
+}
+");
+            }
+
+            if (string.Equals(template, "EditorWindow", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return WrapInNamespace(namespaceName, @"using UnityEditor;
+
+public class {CLASS} : EditorWindow
+{
+    [MenuItem(""Window/{CLASS}"")]
+    public static void ShowWindow()
+    {
+        GetWindow<{CLASS}>(""{CLASS}"");
+    }
+}
+");
+            }
+
+            return template;
+        }
+
+        private static bool IsEditorOnlyTemplate(string template)
+        {
+            return string.Equals(template, "Editor", System.StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(template, "EditorWindow", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string WrapInNamespace(string namespaceName, string content)
+        {
+            if (string.IsNullOrEmpty(namespaceName))
+                return content;
+
+            return $@"namespace {{NAMESPACE}}
+{{
+{IndentContent(content, 1)}
+}}";
+        }
+
+        private static string IndentContent(string content, int level)
+        {
+            string indent = new string(' ', level * 4);
+            var normalized = content.Replace("\r\n", "\n").TrimEnd('\n');
+            return string.Join("\n", normalized.Split('\n').Select(line =>
+                string.IsNullOrEmpty(line) ? string.Empty : indent + line)) + "\n";
         }
 
         private static string NormalizePath(string path)

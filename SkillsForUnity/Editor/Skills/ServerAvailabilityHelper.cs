@@ -44,6 +44,8 @@ namespace UnitySkills
             if (!alwaysInclude && !isCompiling)
                 return null;
 
+            reason = NormalizeReason(reason, isCompiling);
+
             return new Dictionary<string, object>
             {
                 ["mayDisconnect"] = true,
@@ -55,6 +57,42 @@ namespace UnitySkills
                 ["retryAfterSeconds"] = Math.Max(1, retryAfterSeconds),
                 ["retryStrategy"] = "wait_and_retry"
             };
+        }
+
+        private static string NormalizeReason(string reason, bool isCompiling)
+        {
+            if (string.IsNullOrWhiteSpace(reason) || LooksCorrupted(reason))
+            {
+                return isCompiling
+                    ? "Unity is compiling or refreshing assets after this operation."
+                    : "This operation may trigger a script-domain reload or asset refresh.";
+            }
+
+            return reason;
+        }
+
+        private static bool LooksCorrupted(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            int nonAsciiCount = 0;
+            int asciiLetterCount = 0;
+            foreach (char ch in text)
+            {
+                if (ch > 127)
+                {
+                    nonAsciiCount++;
+                }
+                else if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+                {
+                    asciiLetterCount++;
+                }
+            }
+
+            return nonAsciiCount >= 6 &&
+                   asciiLetterCount >= 3 &&
+                   nonAsciiCount * 2 >= text.Length;
         }
 
         public static void AttachTransientUnavailableNotice(IDictionary<string, object> result, string reason, bool alwaysInclude = false, int retryAfterSeconds = 5)

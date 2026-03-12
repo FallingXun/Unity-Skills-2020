@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Unity-2022.3%2B-black?style=for-the-badge&logo=unity" alt="Unity">
-  <img src="https://img.shields.io/badge/Skills-446-green?style=for-the-badge" alt="Skills">
+  <img src="https://img.shields.io/badge/Skills-447-green?style=for-the-badge" alt="Skills">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-orange?style=for-the-badge" alt="License"></a>
   <a href="README_EN.md"><img src="https://img.shields.io/badge/README-English-blue?style=for-the-badge" alt="English"></a>
 </p>
@@ -31,13 +31,14 @@
 ## 🚀 核心特性
 
 - ⚡ **极致效能**：支持 **Result Truncation** 与 **SKILL.md** 瘦身，最大化节省 Token。
-- 🛠️ **全能工具库**：内置 446 Skills，支持 **Batch (批处理)** 操作，大幅减少 HTTP 通信开销，显著提升执行效率。
+- 🛠️ **全能工具库**：内置 **447 REST Skills**，并提供 **13 个 advisory 设计模块**，支持 **Batch (批处理)** 操作，大幅减少 HTTP 通信开销，显著提升执行效率。
 - 🛡️ **安全第一**：支持 **Transactional (事务原子性)**，操作失败自动回滚，场景零残留。
 - 🌍 **多实例支持**：自动端口发现、全局注册表，支持同时控制多个 Unity 项目。
 - 🤖 **深度集成**：独家支持 **Antigravity Slash Commands**，解锁 `/unity-skills` 交互新体验。
 - 🔌 **全环境兼容**：完美支持 Claude Code, Antigravity, Gemini CLI 等主流 AI 终端。
 - 🎥 **Cinemachine 2.x/3.x 双版本支持**：自动检测 Unity 版本并安装对应 Cinemachine，支持 **MixingCamera**, **ClearShot**, **TargetGroup**, **Spline** 等高级相机控制。
-- 🔗 **超长任务稳定连接**：请求超时用户可配置（默认 15 分钟），Domain Reload 后自动恢复同一端口，Python 客户端自动同步超时配置，长时间任务不再断连。
+- 🔗 **超长任务稳定连接**：请求超时用户可配置（默认 15 分钟），Domain Reload 后自动恢复同一端口；脚本编译、Define 变更、资源重导入等导致的短暂不可达会明确提示稍后重试。
+- 🧠 **架构与脚本设计辅助**：新增 advisory 模块，可按需辅助 AI 在脚本生成前思考耦合、性能、可维护性与 Inspector 体验。
 - 🎨 **UI Toolkit**：全面支持 UXML/USS 模板生成，可引导 AI 构建规范的 UI 结构，辅助 UI 开发。
 
 ---
@@ -76,9 +77,9 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity
 https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#beta
 ```
 
-**指定版本安装** (如 v1.6.0):
+**指定版本安装** (如 v1.6.2):
 ```
-https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
+https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.2
 ```
 
 > 📦 所有版本包可在 [Releases](https://github.com/Besty0728/Unity-Skills/releases) 页面下载
@@ -86,13 +87,19 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 ### 2. 启动服务
 在 Unity 中点击菜单：`Window > UnitySkills > Start Server`
 
+> ⏳ `script_*`、`debug_force_recompile`、`debug_set_defines`、部分资源重导入、包安装/移除等操作会触发编译或 Domain Reload，REST 服务短暂不可达属于正常现象，请稍候重试。
+
 ### 3. 一键配置 AI Skills
 1. 打开 `Window > UnitySkills > Skill Installer`。
 2. 选择对应的终端图标（Claude / Antigravity / Gemini / Codex）。
 3. 点击 **"Install"** 即可完成环境配置，无需手动拷贝代码。
 
+> 安装器会复制完整的 `unity-skills/` 模板目录。
+>
 > 安装器落盘文件说明（生成于目标目录）：
 > - `SKILL.md`
+> - `skills/`
+> - `references/`
 > - `scripts/unity_skills.py`
 > - `scripts/agent_config.json`（包含 Agent 标识）
 > - Antigravity 额外生成 `workflows/unity-skills.md`
@@ -119,6 +126,7 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 5. **目录结构要求**：复制后需保持结构如下（示例）：
    - `unity-skills/SKILL.md`
    - `unity-skills/skills/`
+   - `unity-skills/references/`
    - `unity-skills/scripts/unity_skills.py`
    - `unity-skills/scripts/agent_config.json`
 6. **重启工具**：让工具重新加载 Skills 列表。
@@ -133,11 +141,11 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 - OpenAI Codex：`~/.codex/skills/`
 
 #### 🧩 其他支持 Skills 的工具
-若你使用的是其他支持 Skills 的工具，请按照该工具文档指定的 Skills 根目录进行安装。只要满足**标准安装规范**（根目录包含 `SKILL.md` 并保持 `skills/` 与 `scripts/` 结构），即可被正确识别。
+若你使用的是其他支持 Skills 的工具，请按照该工具文档指定的 Skills 根目录进行安装。只要满足**标准安装规范**（根目录包含 `SKILL.md` 并保持 `skills/`、`references/` 与 `scripts/` 结构），即可被正确识别。
 
 ---
 
-## 📦 Skills 分类概要 (446)
+## 📦 Skills 分类概要 (447)
 
 | 分类 | 数量 | 核心功能 |
 | :--- | :---: | :--- |
@@ -181,6 +189,8 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 | **Sample** | 8 | 基础示例：创建/删除/变换/场景信息 |
 
 > ⚠️ 大部分模块支持 `*_batch` 批量操作，操作多个物体时应优先使用批量 Skills 以提升性能。
+>
+> 🧠 `unity-skills/skills/` 目录下额外提供 **13 个 advisory 设计模块**，用于在脚本编写前辅助 AI 进行架构、性能、可维护性与 Inspector 设计决策。
 
 ---
 
@@ -190,7 +200,7 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 .
 ├── SkillsForUnity/                 # Unity 编辑器插件 (UPM Package)
 │   ├── package.json                # com.besty.unity-skills
-│   └── Editor/Skills/              # 核心 Skill 逻辑 (37 个 *Skills.cs, 共 446 Skills)
+│   └── Editor/Skills/              # 核心 Skill 逻辑 (38 个 *Skills.cs, 共 447 Skills)
 │       ├── SkillsHttpServer.cs     # HTTP 服务器核心 (Producer-Consumer)
 │       ├── SkillRouter.cs          # 请求路由 & 反射发现 Skills
 │       ├── WorkflowManager.cs      # 持久化工作流 (Task/Session/Snapshot)
@@ -202,12 +212,12 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 │       ├── CinemachineSkills.cs    # Cinemachine 2.x/3.x (23 skills)
 │       ├── WorkflowSkills.cs       # Workflow 撤销/回滚 (22 skills)
 │       ├── PerceptionSkills.cs     # 场景理解 (9 skills)
-│       └── ...                     # 446 Skills 源码
+│       └── ...                     # 447 Skills 源码
 ├── unity-skills/                   # 跨平台 AI Skill 模板 (分发给 AI 工具)
 │   ├── SKILL.md                    # 主 Skill 定义 (AI 读取)
 │   ├── scripts/
 │   │   └── unity_skills.py         # Python 客户端库
-│   ├── skills/                     # 按模块分类的 Skill 文档
+│   ├── skills/                     # 按模块分类的 Skill 文档 + 13 个 advisory 模块
 │   └── references/                 # Unity 开发参考文档
 ├── docs/
 │   └── SETUP_GUIDE.md              # 完整安装使用指南

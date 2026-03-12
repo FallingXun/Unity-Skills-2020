@@ -256,7 +256,7 @@ namespace UnitySkills
                 states
             };
         }
-        [UnitySkill("animator_add_state", "Add a state to an Animator Controller layer")]
+        [UnitySkill("animator_add_state", "Add a state to an Animator Controller layer", TracksWorkflow = true)]
         public static object AnimatorAddState(string controllerPath, string stateName, string clipPath = null, int layer = 0)
         {
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
@@ -274,7 +274,7 @@ namespace UnitySkills
             return new { success = true, controller = controllerPath, stateName, layer };
         }
 
-        [UnitySkill("animator_add_transition", "Add a transition between two states in an Animator Controller")]
+        [UnitySkill("animator_add_transition", "Add a transition between two states in an Animator Controller", TracksWorkflow = true)]
         public static object AnimatorAddTransition(string controllerPath, string fromState, string toState, int layer = 0, bool hasExitTime = true, float duration = 0.25f)
         {
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);

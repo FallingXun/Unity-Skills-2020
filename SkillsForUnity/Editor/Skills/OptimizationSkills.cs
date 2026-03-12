@@ -157,7 +157,7 @@ namespace UnitySkills
             return new { success = true, threshold = $"{thresholdKB}KB", count = large.Count, assets = large };
         }
 
-        [UnitySkill("optimize_set_static_flags", "Set static flags on GameObjects. flags: Everything/Nothing/BatchingStatic/OccludeeStatic/OccluderStatic/NavigationStatic/ReflectionProbeStatic")]
+        [UnitySkill("optimize_set_static_flags", "Set static flags on GameObjects. flags: Everything/Nothing/BatchingStatic/OccludeeStatic/OccluderStatic/NavigationStatic/ReflectionProbeStatic", TracksWorkflow = true)]
         public static object OptimizeSetStaticFlags(string name = null, int instanceId = 0, string path = null, string flags = "Everything", bool includeChildren = false)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -189,7 +189,7 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name, flags = flags.ToString(), isStatic = go.isStatic };
         }
 
-        [UnitySkill("optimize_audio_compression", "Batch set audio compression. compressionFormat: PCM/Vorbis/ADPCM. loadType: DecompressOnLoad/CompressedInMemory/Streaming")]
+        [UnitySkill("optimize_audio_compression", "Batch set audio compression. compressionFormat: PCM/Vorbis/ADPCM. loadType: DecompressOnLoad/CompressedInMemory/Streaming", TracksWorkflow = true)]
         public static object OptimizeAudioCompression(string compressionFormat = "Vorbis", string loadType = "CompressedInMemory", float quality = 0.5f, string filter = "")
         {
             if (!System.Enum.TryParse<AudioCompressionFormat>(compressionFormat, true, out var cf))
@@ -266,7 +266,7 @@ namespace UnitySkills
             return new { success = true, transparentObjectCount = transparent.Count, objects = transparent };
         }
 
-        [UnitySkill("optimize_set_lod_group", "Add or configure LOD Group. lodDistances: comma-separated screen-relative heights (e.g. '0.6,0.3,0.1')")]
+        [UnitySkill("optimize_set_lod_group", "Add or configure LOD Group. lodDistances: comma-separated screen-relative heights (e.g. '0.6,0.3,0.1')", TracksWorkflow = true)]
         public static object OptimizeSetLodGroup(string name = null, int instanceId = 0, string path = null, string lodDistances = "0.6,0.3,0.1")
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);

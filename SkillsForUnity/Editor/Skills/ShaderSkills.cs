@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace UnitySkills
 {
@@ -10,7 +11,9 @@ namespace UnitySkills
     /// </summary>
     public static class ShaderSkills
     {
-        [UnitySkill("shader_create", "Create a new shader file")]
+        private static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(false);
+
+        [UnitySkill("shader_create", "Create a new shader file", TracksWorkflow = true)]
         public static object ShaderCreate(string shaderName, string savePath, string template = null)
         {
             if (!string.IsNullOrEmpty(savePath) && Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
@@ -72,11 +75,14 @@ namespace UnitySkills
             }}
             ENDCG
         }}
-    }}
+            }}
 }}
 ";
-            File.WriteAllText(savePath, content);
+            File.WriteAllText(savePath, content, Utf8NoBom);
             AssetDatabase.ImportAsset(savePath);
+
+            var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(savePath);
+            if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
 
             return new { success = true, shaderName, path = savePath };
         }
@@ -88,7 +94,7 @@ namespace UnitySkills
             if (!File.Exists(shaderPath))
                 return new { error = $"Shader not found: {shaderPath}" };
 
-            var content = File.ReadAllText(shaderPath);
+            var content = File.ReadAllText(shaderPath, System.Text.Encoding.UTF8);
             var lines = content.Split('\n').Length;
 
             return new { path = shaderPath, lines, content };
@@ -167,13 +173,12 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("shader_delete", "Delete a shader file")]
+        [UnitySkill("shader_delete", "Delete a shader file", TracksWorkflow = true)]
         public static object ShaderDelete(string shaderPath)
         {
+            if (Validate.SafePath(shaderPath, "shaderPath", isDelete: true) is object pathErr) return pathErr;
             if (!File.Exists(shaderPath))
                 return new { error = $"Shader not found: {shaderPath}" };
-
-            if (Validate.SafePath(shaderPath, "shaderPath", isDelete: true) is object pathErr) return pathErr;
 
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(shaderPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
@@ -222,11 +227,11 @@ namespace UnitySkills
             return new { shaderName = shader.name, subshaderCount, totalPasses = totalVariants };
         }
 
-        [UnitySkill("shader_create_urp", "Create a URP shader from template (type: Unlit or Lit)")]
+        [UnitySkill("shader_create_urp", "Create a URP shader from template (type: Unlit or Lit)", TracksWorkflow = true)]
         public static object ShaderCreateUrp(string shaderName, string savePath, string type = "Unlit")
         {
-            if (File.Exists(savePath)) return new { error = $"File already exists: {savePath}" };
             if (Validate.SafePath(savePath, "savePath") is object pathErr2) return pathErr2;
+            if (File.Exists(savePath)) return new { error = $"File already exists: {savePath}" };
             var dir = Path.GetDirectoryName(savePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
             string content = type.ToLower() == "lit"
@@ -285,12 +290,15 @@ namespace UnitySkills
         }}
     }}
 }}";
-            File.WriteAllText(savePath, content);
+            File.WriteAllText(savePath, content, Utf8NoBom);
             AssetDatabase.ImportAsset(savePath);
+
+            var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(savePath);
+            if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
             return new { success = true, shaderName, path = savePath, type };
         }
 
-        [UnitySkill("shader_set_global_keyword", "Enable or disable a global shader keyword")]
+        [UnitySkill("shader_set_global_keyword", "Enable or disable a global shader keyword", TracksWorkflow = true)]
         public static object ShaderSetGlobalKeyword(string keyword, bool enabled)
         {
             if (enabled) Shader.EnableKeyword(keyword);

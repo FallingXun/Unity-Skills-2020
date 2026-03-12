@@ -210,7 +210,7 @@ namespace UnitySkills
                 loadState = clip.loadState.ToString(), ambisonic = clip.ambisonic };
         }
 
-        [UnitySkill("audio_add_source", "Add an AudioSource component to a GameObject")]
+        [UnitySkill("audio_add_source", "Add an AudioSource component to a GameObject", TracksWorkflow = true)]
         public static object AudioAddSource(string name = null, int instanceId = 0, string path = null, string clipPath = null, bool playOnAwake = false, bool loop = false, float volume = 1f)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -245,7 +245,7 @@ namespace UnitySkills
                 maxDistance = source.maxDistance, priority = source.priority };
         }
 
-        [UnitySkill("audio_set_source_properties", "Set AudioSource properties")]
+        [UnitySkill("audio_set_source_properties", "Set AudioSource properties", TracksWorkflow = true)]
         public static object AudioSetSourceProperties(string name = null, int instanceId = 0, string path = null, string clipPath = null,
             float? volume = null, float? pitch = null, bool? loop = null, bool? playOnAwake = null, bool? mute = null, float? spatialBlend = null, int? priority = null)
         {
@@ -277,7 +277,7 @@ namespace UnitySkills
             return new { success = true, totalFound = sources.Length, showing = results.Length, sources = results };
         }
 
-        [UnitySkill("audio_create_mixer", "Create a new AudioMixer asset")]
+        [UnitySkill("audio_create_mixer", "Create a new AudioMixer asset", TracksWorkflow = true)]
         public static object AudioCreateMixer(string mixerName = "NewAudioMixer", string folder = "Assets")
         {
             if (Validate.Required(mixerName, "mixerName") is object nameErr) return nameErr;

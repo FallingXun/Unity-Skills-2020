@@ -132,7 +132,7 @@ namespace UnitySkills
                 _logs.RemoveAt(0);
         }
 
-        [UnitySkill("console_set_pause_on_error", "Enable or disable Error Pause in Play mode")]
+        [UnitySkill("console_set_pause_on_error", "Enable or disable Error Pause in Play mode", TracksWorkflow = true)]
         public static object ConsoleSetPauseOnError(bool enabled = true)
         {
             var consoleType = System.Type.GetType("UnityEditor.ConsoleWindow, UnityEditor");
@@ -199,13 +199,13 @@ namespace UnitySkills
             return new { success = true, total = entries.Count, source = "console", logs = logCount, warnings = warnCount, errors = errCount };
         }
 
-        [UnitySkill("console_set_collapse", "Set console log collapse mode")]
+        [UnitySkill("console_set_collapse", "Set console log collapse mode", TracksWorkflow = true)]
         public static object ConsoleSetCollapse(bool enabled)
         {
             return SetConsoleFlag(32, enabled, "Collapse");
         }
 
-        [UnitySkill("console_set_clear_on_play", "Set clear on play mode")]
+        [UnitySkill("console_set_clear_on_play", "Set clear on play mode", TracksWorkflow = true)]
         public static object ConsoleSetClearOnPlay(bool enabled)
         {
             return SetConsoleFlag(16, enabled, "ClearOnPlay");

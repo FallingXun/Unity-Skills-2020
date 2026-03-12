@@ -9,6 +9,7 @@ namespace UnitySkills
 {
     public static class WorkflowManager
     {
+        private static readonly System.Text.UTF8Encoding Utf8NoBom = new System.Text.UTF8Encoding(false);
         private static WorkflowHistoryData _history;
         private static WorkflowTask _currentTask;
         private static string _currentSessionId;
@@ -45,23 +46,19 @@ namespace UnitySkills
             {
                 try
                 {
-                    string json = File.ReadAllText(HistoryFilePath);
+                    string json = File.ReadAllText(HistoryFilePath, System.Text.Encoding.UTF8);
                     _history = JsonUtility.FromJson<WorkflowHistoryData>(json);
 
-                    // JsonUtility.FromJson 可能返回 null
                     if (_history == null)
                     {
                         _history = new WorkflowHistoryData();
+                        _history.EnsureDefaults();
+                        MigrateHistorySchema();
                         return;
                     }
 
-                    // 确保列表不为 null（JsonUtility 可能不会初始化新字段）
-                    if (_history.tasks == null) _history.tasks = new List<WorkflowTask>();
-                    if (_history.undoneStack == null) _history.undoneStack = new List<WorkflowTask>();
-
-                    // Cleanup any null tasks if they somehow got in
-                    _history.tasks.RemoveAll(t => t == null);
-                    _history.undoneStack.RemoveAll(t => t == null);
+                    _history.EnsureDefaults();
+                    MigrateHistorySchema();
                     SanitizeHistory();
                 }
                 catch (Exception e)
@@ -74,6 +71,9 @@ namespace UnitySkills
             {
                 _history = new WorkflowHistoryData();
             }
+
+            _history.EnsureDefaults();
+            MigrateHistorySchema();
         }
 
         public static void SaveHistory()
@@ -84,9 +84,13 @@ namespace UnitySkills
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
+                _history ??= new WorkflowHistoryData();
+                _history.EnsureDefaults();
+                _history.schemaVersion = WorkflowHistoryData.CurrentSchemaVersion;
+
                 string json = JsonUtility.ToJson(_history, true);
                 string tmpPath = HistoryFilePath + ".tmp";
-                File.WriteAllText(tmpPath, json);
+                File.WriteAllText(tmpPath, json, Utf8NoBom);
                 if (File.Exists(HistoryFilePath))
                     File.Delete(HistoryFilePath);
                 File.Move(tmpPath, HistoryFilePath);
@@ -99,6 +103,8 @@ namespace UnitySkills
 
         private static void SanitizeHistory()
         {
+            if (_history == null) return;
+
             SanitizeTaskCollection(_history.tasks, "tasks");
             SanitizeTaskCollection(_history.undoneStack, "undoneStack");
         }
@@ -148,6 +154,7 @@ namespace UnitySkills
                 timestamp = DateTimeOffset.Now.ToUnixTimeSeconds(),
                 snapshots = new List<ObjectSnapshot>()
             };
+            _currentTask.EnsureSnapshotIndex();
 
             // Hook into Undo system to automatically track changes during the task
             Undo.postprocessModifications += OnUndoPostprocess;
@@ -213,8 +220,7 @@ namespace UnitySkills
             // Get GlobalObjectId for persistence
             string gid = GlobalObjectId.GetGlobalObjectIdSlow(obj).ToString();
 
-            // Check if already snapshotted in this task
-            if (_currentTask.snapshots.Any(s => s.globalObjectId == gid))
+            if (!_currentTask.TryRegisterSnapshotId(gid))
                 return;
 
             string json = "";
@@ -268,8 +274,7 @@ namespace UnitySkills
             string gid = GlobalObjectId.GetGlobalObjectIdSlow(comp).ToString();
             string parentGid = GlobalObjectId.GetGlobalObjectIdSlow(comp.gameObject).ToString();
 
-            // Check if already snapshotted in this task
-            if (_currentTask.snapshots.Any(s => s.globalObjectId == gid))
+            if (!_currentTask.TryRegisterSnapshotId(gid))
                 return;
 
             _currentTask.snapshots.Add(new ObjectSnapshot
@@ -296,8 +301,7 @@ namespace UnitySkills
 
             string gid = GlobalObjectId.GetGlobalObjectIdSlow(asset).ToString();
 
-            // Check if already snapshotted in this task
-            if (_currentTask.snapshots.Any(s => s.globalObjectId == gid))
+            if (!_currentTask.TryRegisterSnapshotId(gid))
                 return;
 
             string assetBytesBase64 = "";
@@ -333,8 +337,7 @@ namespace UnitySkills
 
             string gid = GlobalObjectId.GetGlobalObjectIdSlow(go).ToString();
 
-            // Check if already snapshotted in this task
-            if (_currentTask.snapshots.Any(s => s.globalObjectId == gid))
+            if (!_currentTask.TryRegisterSnapshotId(gid))
                 return;
 
             var t = go.transform;
@@ -1048,6 +1051,19 @@ namespace UnitySkills
         }
 
         #endregion
+
+        private static void MigrateHistorySchema()
+        {
+            if (_history == null)
+                return;
+
+            if (_history.schemaVersion < WorkflowHistoryData.CurrentSchemaVersion)
+            {
+                SkillsLogger.LogVerbose(
+                    $"Workflow history schema upgraded: {_history.schemaVersion} -> {WorkflowHistoryData.CurrentSchemaVersion}");
+                _history.schemaVersion = WorkflowHistoryData.CurrentSchemaVersion;
+            }
+        }
 
         public static void ClearHistory()
         {

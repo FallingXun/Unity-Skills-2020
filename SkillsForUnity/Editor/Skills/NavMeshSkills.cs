@@ -63,7 +63,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("navmesh_add_agent", "Add NavMeshAgent component to an object")]
+        [UnitySkill("navmesh_add_agent", "Add NavMeshAgent component to an object", TracksWorkflow = true)]
         public static object NavMeshAddAgent(string name = null, int instanceId = 0, string path = null)
         {
             var (go, err) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -74,7 +74,7 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name };
         }
 
-        [UnitySkill("navmesh_set_agent", "Set NavMeshAgent properties (speed, acceleration, radius, height, stoppingDistance)")]
+        [UnitySkill("navmesh_set_agent", "Set NavMeshAgent properties (speed, acceleration, radius, height, stoppingDistance)", TracksWorkflow = true)]
         public static object NavMeshSetAgent(string name = null, int instanceId = 0, string path = null,
             float? speed = null, float? acceleration = null, float? angularSpeed = null,
             float? radius = null, float? height = null, float? stoppingDistance = null)
@@ -94,7 +94,7 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name, speed = agent.speed, radius = agent.radius };
         }
 
-        [UnitySkill("navmesh_add_obstacle", "Add NavMeshObstacle component to an object")]
+        [UnitySkill("navmesh_add_obstacle", "Add NavMeshObstacle component to an object", TracksWorkflow = true)]
         public static object NavMeshAddObstacle(string name = null, int instanceId = 0, string path = null, bool carve = true)
         {
             var (go, err) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -106,7 +106,7 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name, carving = obs.carving };
         }
 
-        [UnitySkill("navmesh_set_obstacle", "Set NavMeshObstacle properties (shape, size, carving)")]
+        [UnitySkill("navmesh_set_obstacle", "Set NavMeshObstacle properties (shape, size, carving)", TracksWorkflow = true)]
         public static object NavMeshSetObstacle(string name = null, int instanceId = 0, string path = null,
             string shape = null, float? sizeX = null, float? sizeY = null, float? sizeZ = null, bool? carving = null)
         {
@@ -135,7 +135,7 @@ namespace UnitySkills
             return new { success = true, found = false };
         }
 
-        [UnitySkill("navmesh_set_area_cost", "Set area traversal cost")]
+        [UnitySkill("navmesh_set_area_cost", "Set area traversal cost", TracksWorkflow = true)]
         public static object NavMeshSetAreaCost(int areaIndex, float cost)
         {
             NavMesh.SetAreaCost(areaIndex, cost);

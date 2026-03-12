@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 namespace UnitySkills
 {
@@ -114,7 +115,7 @@ namespace UnitySkills
                 return _cachedSceneObjects;
 
             var result = new List<GameObject>();
-            var roots = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+            var roots = GetLoadedSceneRoots();
             var stack = new Stack<Transform>();
             foreach (var root in roots)
                 stack.Push(root.transform);
@@ -130,6 +131,19 @@ namespace UnitySkills
             _cachedSceneObjects = result;
             _cacheValid = true;
             return result;
+        }
+
+        private static IEnumerable<GameObject> GetLoadedSceneRoots()
+        {
+            for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; sceneIndex++)
+            {
+                var scene = SceneManager.GetSceneAt(sceneIndex);
+                if (!scene.IsValid() || !scene.isLoaded)
+                    continue;
+
+                foreach (var root in scene.GetRootGameObjects())
+                    yield return root;
+            }
         }
 
         /// <summary>
@@ -163,13 +177,7 @@ namespace UnitySkills
             // Priority 3: Simple name search (exact match first)
             if (!string.IsNullOrEmpty(name))
             {
-                // Try exact match with GameObject.Find
-                var go = GameObject.Find(name);
-                if (go != null)
-                    return go;
-
-                // Try case-insensitive exact match
-                go = FindByNameCaseInsensitive(name);
+                var go = FindByNameCaseInsensitive(name);
                 if (go != null)
                     return go;
 
@@ -182,13 +190,13 @@ namespace UnitySkills
             // Priority 4: Tag search
             if (!string.IsNullOrEmpty(tag))
             {
-                try
+                var go = GetAllSceneObjects().FirstOrDefault(candidate =>
                 {
-                    var go = GameObject.FindGameObjectWithTag(tag);
-                    if (go != null)
-                        return go;
-                }
-                catch { } // Tag might not exist
+                    try { return candidate.CompareTag(tag); }
+                    catch { return false; }
+                });
+                if (go != null)
+                    return go;
             }
 
             // Priority 5: Component type search
@@ -210,46 +218,58 @@ namespace UnitySkills
             if (string.IsNullOrEmpty(path))
                 return null;
 
-            var parts = path.Split('/');
+            var parts = path.Split(new[] { '/' }, System.StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 0)
                 return null;
 
-            // First, find root objects
-            var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-            
-            // Find first part in root (case-insensitive)
-            var current = rootObjects.FirstOrDefault(go => 
-                go.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase));
-            if (current == null)
-                return null;
-
-            // Navigate down the hierarchy
-            for (int i = 1; i < parts.Length; i++)
+            foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount)
+                .Select(SceneManager.GetSceneAt)
+                .Where(scene => scene.IsValid() && scene.isLoaded))
             {
-                Transform child = null;
-                
-                // Try exact match first
-                child = current.transform.Find(parts[i]);
-                
-                // Try case-insensitive match
-                if (child == null)
+                var rootObjects = scene.GetRootGameObjects();
+                int partIndex = 0;
+
+                if (parts.Length > 1 && scene.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase))
+                    partIndex = 1;
+
+                if (partIndex >= parts.Length)
+                    continue;
+
+                var current = rootObjects.FirstOrDefault(go =>
+                    go.name.Equals(parts[partIndex], System.StringComparison.OrdinalIgnoreCase));
+                if (current == null)
+                    continue;
+
+                partIndex++;
+                while (partIndex < parts.Length && current != null)
                 {
-                    foreach (Transform t in current.transform)
-                    {
-                        if (t.name.Equals(parts[i], System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            child = t;
-                            break;
-                        }
-                    }
+                    current = FindDirectChild(current, parts[partIndex]);
+                    partIndex++;
                 }
-                
-                if (child == null)
-                    return null;
-                current = child.gameObject;
+
+                if (current != null)
+                    return current;
             }
 
-            return current;
+            return null;
+        }
+
+        private static GameObject FindDirectChild(GameObject parent, string childName)
+        {
+            if (parent == null || string.IsNullOrEmpty(childName))
+                return null;
+
+            var exact = parent.transform.Find(childName);
+            if (exact != null)
+                return exact.gameObject;
+
+            foreach (Transform child in parent.transform)
+            {
+                if (child.name.Equals(childName, System.StringComparison.OrdinalIgnoreCase))
+                    return child.gameObject;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -286,8 +306,7 @@ namespace UnitySkills
             var type = ComponentSkills.FindComponentType(componentType);
             if (type == null) return null;
 
-            var comp = Object.FindObjectOfType(type) as Component;
-            return comp?.gameObject;
+            return GetAllSceneObjects().FirstOrDefault(go => go.GetComponent(type) != null);
         }
 
         /// <summary>
@@ -297,19 +316,18 @@ namespace UnitySkills
         {
             IEnumerable<GameObject> results;
 
+            results = GetAllSceneObjects();
+
+            if (!includeInactive)
+                results = results.Where(go => go.activeInHierarchy);
+
             if (!string.IsNullOrEmpty(tag))
             {
-                try { results = GameObject.FindGameObjectsWithTag(tag); }
-                catch { results = new GameObject[0]; } // Tag may not exist
-            }
-            else if (includeInactive)
-            {
-                results = Resources.FindObjectsOfTypeAll<GameObject>()
-                    .Where(go => go.scene.isLoaded); // Only scene objects, not prefabs
-            }
-            else
-            {
-                results = GetAllSceneObjects();
+                results = results.Where(go =>
+                {
+                    try { return go.CompareTag(tag); }
+                    catch { return false; }
+                });
             }
 
             if (!string.IsNullOrEmpty(name))
@@ -395,10 +413,10 @@ namespace UnitySkills
                 var type = ComponentSkills.FindComponentType(componentType);
                 if (type != null)
                 {
-                    var withComp = Object.FindObjectsOfType(type)
-                        .OfType<Component>()
+                    var withComp = GetAllSceneObjects()
+                        .Where(candidate => candidate.GetComponent(type) != null)
                         .Take(3)
-                        .Select(c => $"'{c.gameObject.name}' has {type.Name}");
+                        .Select(candidate => $"'{candidate.name}' has {type.Name}");
                     suggestions.AddRange(withComp);
                 }
             }
@@ -415,7 +433,7 @@ namespace UnitySkills
             if (string.IsNullOrEmpty(query)) return null;
 
             // Try as exact name
-            var go = GameObject.Find(query);
+            var go = FindByNameCaseInsensitive(query);
             if (go != null) return go;
 
             // Try as path
@@ -423,7 +441,8 @@ namespace UnitySkills
             if (go != null) return go;
 
             // Try as tag
-            try { go = GameObject.FindGameObjectWithTag(query); if (go != null) return go; } catch { /* Tag may not exist */ }
+            go = Find(tag: query);
+            if (go != null) return go;
 
             // Try finding "Main Camera" variations
             if (query.Equals("camera", System.StringComparison.OrdinalIgnoreCase) ||
@@ -434,14 +453,17 @@ namespace UnitySkills
                 if (go != null) return go;
                 
                 // Find any camera
-                var cam = Object.FindObjectOfType<Camera>();
+                var cam = GetAllSceneObjects()
+                    .Select(candidate => candidate.GetComponent<Camera>())
+                    .FirstOrDefault(component => component != null);
                 if (cam != null) return cam.gameObject;
             }
 
             // Try finding "Player" variations
             if (query.IndexOf("player", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                try { go = GameObject.FindGameObjectWithTag("Player"); if (go != null) return go; } catch { /* Tag may not exist */ }
+                go = Find(tag: "Player");
+                if (go != null) return go;
             }
 
             // Try case-insensitive contains

@@ -239,7 +239,7 @@ public class {testName}
     }}
 }}
 ";
-            System.IO.File.WriteAllText(path, content);
+            System.IO.File.WriteAllText(path, content, new System.Text.UTF8Encoding(false));
             AssetDatabase.ImportAsset(path);
             return new
             {
@@ -277,7 +277,7 @@ public class {testName}
     }}
 }}
 ";
-            System.IO.File.WriteAllText(path, content);
+            System.IO.File.WriteAllText(path, content, new System.Text.UTF8Encoding(false));
             AssetDatabase.ImportAsset(path);
             return new
             {

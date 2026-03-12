@@ -63,7 +63,7 @@ namespace UnitySkills
             if (importer == null)
                 return new { error = $"Not a texture or asset not found: {assetPath}" };
 
-            // 修改前记录资产状态
+            // 淇敼鍓嶈褰曡祫浜х姸鎬?
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
 
@@ -262,7 +262,7 @@ namespace UnitySkills
                 filterMode = tex.filterMode.ToString(), wrapMode = tex.wrapMode.ToString(), memorySizeKB = memSize / 1024f };
         }
 
-        [UnitySkill("texture_set_type", "Set texture type. textureType: Default/NormalMap/Sprite/EditorGUI/Cursor/Cookie/Lightmap/SingleChannel")]
+        [UnitySkill("texture_set_type", "Set texture type. textureType: Default/NormalMap/Sprite/EditorGUI/Cursor/Cookie/Lightmap/SingleChannel", TracksWorkflow = true)]
         public static object TextureSetType(string assetPath, string textureType)
         {
             if (Validate.Required(assetPath, "assetPath") is object err) return err;
@@ -278,7 +278,7 @@ namespace UnitySkills
             return new { success = true, path = assetPath, textureType = tt.ToString() };
         }
 
-        [UnitySkill("texture_set_platform_settings", "Set platform-specific texture settings. platform: Standalone/iPhone/Android/WebGL")]
+        [UnitySkill("texture_set_platform_settings", "Set platform-specific texture settings. platform: Standalone/iPhone/Android/WebGL", TracksWorkflow = true)]
         public static object TextureSetPlatformSettings(string assetPath, string platform, int? maxSize = null, string format = null, int? compressionQuality = null, bool? overridden = null)
         {
             if (Validate.Required(assetPath, "assetPath") is object err) return err;
@@ -312,7 +312,7 @@ namespace UnitySkills
                 maxTextureSize = ps.maxTextureSize, format = ps.format.ToString(), compressionQuality = ps.compressionQuality };
         }
 
-        [UnitySkill("texture_set_sprite_settings", "Configure Sprite-specific settings (pixelsPerUnit, spriteMode)")]
+        [UnitySkill("texture_set_sprite_settings", "Configure Sprite-specific settings (pixelsPerUnit, spriteMode)", TracksWorkflow = true)]
         public static object TextureSetSpriteSettings(string assetPath, float? pixelsPerUnit = null, string spriteMode = null)
         {
             if (Validate.Required(assetPath, "assetPath") is object err) return err;

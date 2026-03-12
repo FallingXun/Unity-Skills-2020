@@ -97,7 +97,7 @@ namespace UnitySkills
             }
             return false;
         }
-        [UnitySkill("ui_create_canvas", "Create a new Canvas")]
+        [UnitySkill("ui_create_canvas", "Create a new Canvas", TracksWorkflow = true)]
         public static object UICreateCanvas(string name = "Canvas", string renderMode = "ScreenSpaceOverlay")
         {
             var go = new GameObject(name);
@@ -133,7 +133,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("ui_create_panel", "Create a Panel UI element")]
+        [UnitySkill("ui_create_panel", "Create a Panel UI element", TracksWorkflow = true)]
         public static object UICreatePanel(string name = "Panel", string parent = null, float r = 1, float g = 1, float b = 1, float a = 0.5f)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -157,7 +157,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name };
         }
 
-        [UnitySkill("ui_create_button", "Create a Button UI element")]
+        [UnitySkill("ui_create_button", "Create a Button UI element", TracksWorkflow = true)]
         public static object UICreateButton(string name = "Button", string parent = null, string text = "Button", float width = 160, float height = 30)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -191,7 +191,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name, text };
         }
 
-        [UnitySkill("ui_create_text", "Create a Text UI element")]
+        [UnitySkill("ui_create_text", "Create a Text UI element", TracksWorkflow = true)]
         public static object UICreateText(string name = "Text", string parent = null, string text = "New Text", int fontSize = 14, float r = 0, float g = 0, float b = 0)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -212,7 +212,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name, usingTMP = IsTMPAvailable() };
         }
 
-        [UnitySkill("ui_create_image", "Create an Image UI element")]
+        [UnitySkill("ui_create_image", "Create an Image UI element", TracksWorkflow = true)]
         public static object UICreateImage(string name = "Image", string parent = null, string spritePath = null, float width = 100, float height = 100)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -240,7 +240,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name };
         }
 
-        [UnitySkill("ui_create_batch", "Create multiple UI elements (Efficient). items: JSON array of {type, name, parent, text, width, height, ...}")]
+        [UnitySkill("ui_create_batch", "Create multiple UI elements (Efficient). items: JSON array of {type, name, parent, text, width, height, ...}", TracksWorkflow = true)]
         public static object UICreateBatch(string items)
         {
             return BatchExecutor.Execute<BatchUIItem>(items, item =>
@@ -302,7 +302,7 @@ namespace UnitySkills
             public string renderMode { get; set; }
         }
 
-        [UnitySkill("ui_create_inputfield", "Create an InputField UI element")]
+        [UnitySkill("ui_create_inputfield", "Create an InputField UI element", TracksWorkflow = true)]
         public static object UICreateInputField(string name = "InputField", string parent = null, string placeholder = "Enter text...", float width = 200, float height = 30)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -406,7 +406,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name, placeholder, usingTMP = IsTMPAvailable() };
         }
 
-        [UnitySkill("ui_create_slider", "Create a Slider UI element")]
+        [UnitySkill("ui_create_slider", "Create a Slider UI element", TracksWorkflow = true)]
         public static object UICreateSlider(string name = "Slider", string parent = null, float minValue = 0, float maxValue = 1, float value = 0.5f, float width = 160, float height = 20)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -475,7 +475,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name, minValue, maxValue, value };
         }
 
-        [UnitySkill("ui_create_toggle", "Create a Toggle UI element")]
+        [UnitySkill("ui_create_toggle", "Create a Toggle UI element", TracksWorkflow = true)]
         public static object UICreateToggle(string name = "Toggle", string parent = null, string label = "Toggle", bool isOn = false)
         {
             var parentGo = FindOrCreateCanvas(parent);
@@ -532,7 +532,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, instanceId = go.GetInstanceID(), parent = parentGo.name, label, isOn };
         }
 
-        [UnitySkill("ui_set_text", "Set text content on a UI Text element (supports name/instanceId/path)")]
+        [UnitySkill("ui_set_text", "Set text content on a UI Text element (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object UISetText(string name = null, int instanceId = 0, string path = null, string text = null)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -646,7 +646,7 @@ namespace UnitySkills
         // Advanced UI Layout Skills
         // ==================================================================================
 
-        [UnitySkill("ui_set_anchor", "Set anchor preset for a UI element (TopLeft, TopCenter, TopRight, MiddleLeft, MiddleCenter, MiddleRight, BottomLeft, BottomCenter, BottomRight, StretchHorizontal, StretchVertical, StretchAll)")]
+        [UnitySkill("ui_set_anchor", "Set anchor preset for a UI element (TopLeft, TopCenter, TopRight, MiddleLeft, MiddleCenter, MiddleRight, BottomLeft, BottomCenter, BottomRight, StretchHorizontal, StretchVertical, StretchAll)", TracksWorkflow = true)]
         public static object UISetAnchor(string name = null, int instanceId = 0, string path = null, string preset = "MiddleCenter", bool setPivot = true)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -696,7 +696,7 @@ namespace UnitySkills
             return new { success = true, name = go.name, preset, anchorMin = $"({anchorMin.x}, {anchorMin.y})", anchorMax = $"({anchorMax.x}, {anchorMax.y})" };
         }
 
-        [UnitySkill("ui_set_rect", "Set RectTransform size, position, and padding (offsets)")]
+        [UnitySkill("ui_set_rect", "Set RectTransform size, position, and padding (offsets)", TracksWorkflow = true)]
         public static object UISetRect(
             string name = null, int instanceId = 0, string path = null,
             float? width = null, float? height = null,

@@ -11,14 +11,13 @@ namespace UnitySkills
     /// </summary>
     public static class AssetSkills
     {
-        [UnitySkill("asset_import", "Import an asset from external path")]
+        [UnitySkill("asset_import", "Import an asset from external path", TracksWorkflow = true)]
         public static object AssetImport(string sourcePath, string destinationPath)
         {
             if (!File.Exists(sourcePath) && !Directory.Exists(sourcePath))
                 return new { error = $"Source not found: {sourcePath}" };
             if (Directory.Exists(sourcePath))
                 return new { error = $"Source path must be a file, not a directory: {sourcePath}" };
-
             if (Validate.SafePath(destinationPath, "destinationPath") is object err) return err;
 
             var dir = Path.GetDirectoryName(destinationPath);
@@ -28,7 +27,6 @@ namespace UnitySkills
             File.Copy(sourcePath, destinationPath, true);
             AssetDatabase.ImportAsset(destinationPath);
 
-            // 记录新创建的资产
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(destinationPath);
             if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
 
@@ -42,29 +40,27 @@ namespace UnitySkills
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"已导入脚本相关资源: {destinationPath}。Unity 可能短暂重载脚本域。",
+                    $"Imported script-domain asset: {destinationPath}. Unity may briefly reload the script domain.",
                     alwaysInclude: true);
             }
             else
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"资源导入后 Unity 仍在刷新: {destinationPath}。",
+                    $"Asset import completed: {destinationPath}. Unity may still be refreshing assets.",
                     alwaysInclude: false);
             }
 
             return result;
         }
 
-        [UnitySkill("asset_delete", "Delete an asset")]
+        [UnitySkill("asset_delete", "Delete an asset", TracksWorkflow = true)]
         public static object AssetDelete(string assetPath)
         {
             if (Validate.SafePath(assetPath, "assetPath", isDelete: true) is object err) return err;
-
             if (!File.Exists(assetPath) && !Directory.Exists(assetPath))
                 return new { error = $"Asset not found: {assetPath}" };
 
-            // 删除前记录资产状态（用于恢复）
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
 
@@ -80,27 +76,26 @@ namespace UnitySkills
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"已删除脚本相关资源: {assetPath}。Unity 可能短暂重载脚本域。",
+                    $"Deleted script-domain asset: {assetPath}. Unity may briefly reload the script domain.",
                     alwaysInclude: true);
             }
             else
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"资源删除后 Unity 仍在刷新: {assetPath}。",
+                    $"Asset deletion completed: {assetPath}. Unity may still be refreshing assets.",
                     alwaysInclude: false);
             }
 
             return result;
         }
 
-        [UnitySkill("asset_move", "Move or rename an asset")]
+        [UnitySkill("asset_move", "Move or rename an asset", TracksWorkflow = true)]
         public static object AssetMove(string sourcePath, string destinationPath)
         {
             if (Validate.SafePath(sourcePath, "sourcePath") is object err1) return err1;
             if (Validate.SafePath(destinationPath, "destinationPath") is object err2) return err2;
 
-            // 移动前记录资产状态
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(sourcePath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
 
@@ -119,21 +114,21 @@ namespace UnitySkills
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"已移动脚本相关资源: {sourcePath} -> {destinationPath}。Unity 可能短暂重载脚本域。",
+                    $"Moved script-domain asset: {sourcePath} -> {destinationPath}. Unity may briefly reload the script domain.",
                     alwaysInclude: true);
             }
             else
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"资源移动后 Unity 仍在刷新: {destinationPath}。",
+                    $"Asset move completed: {destinationPath}. Unity may still be refreshing assets.",
                     alwaysInclude: false);
             }
 
             return result;
         }
 
-        [UnitySkill("asset_import_batch", "Import multiple assets. items: JSON array of {sourcePath, destinationPath}")]
+        [UnitySkill("asset_import_batch", "Import multiple assets. items: JSON array of {sourcePath, destinationPath}", TracksWorkflow = true)]
         public static object AssetImportBatch(string items)
         {
             return BatchExecutor.Execute<BatchImportItem>(items, item =>
@@ -144,21 +139,25 @@ namespace UnitySkills
                     throw new System.Exception("File not found");
 
                 var dir = Path.GetDirectoryName(item.destinationPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
                 File.Copy(item.sourcePath, item.destinationPath, true);
                 AssetDatabase.ImportAsset(item.destinationPath);
+
                 var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(item.destinationPath);
                 if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
+
                 return new
                 {
                     target = item.destinationPath,
                     success = true,
                     serverAvailability = ServerAvailabilityHelper.AffectsScriptDomain(item.destinationPath)
                         ? ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                            $"已导入脚本相关资源: {item.destinationPath}。Unity 可能短暂重载脚本域。",
+                            $"Imported script-domain asset: {item.destinationPath}. Unity may briefly reload the script domain.",
                             alwaysInclude: true)
                         : ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                            $"资源导入后 Unity 仍在刷新: {item.destinationPath}。",
+                            $"Asset import completed: {item.destinationPath}. Unity may still be refreshing assets.",
                             alwaysInclude: false)
                 };
             }, item => item.destinationPath ?? item.sourcePath,
@@ -168,7 +167,7 @@ namespace UnitySkills
 
         private class BatchImportItem { public string sourcePath; public string destinationPath; }
 
-        [UnitySkill("asset_delete_batch", "Delete multiple assets. items: JSON array of {path}")]
+        [UnitySkill("asset_delete_batch", "Delete multiple assets. items: JSON array of {path}", TracksWorkflow = true)]
         public static object AssetDeleteBatch(string items)
         {
             return BatchExecutor.Execute<BatchDeleteItem>(items, item =>
@@ -180,16 +179,17 @@ namespace UnitySkills
                 if (asset != null) WorkflowManager.SnapshotObject(asset);
                 if (!AssetDatabase.DeleteAsset(item.path))
                     throw new System.Exception("Delete failed");
+
                 return new
                 {
                     target = item.path,
                     success = true,
                     serverAvailability = ServerAvailabilityHelper.AffectsScriptDomain(item.path)
                         ? ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                            $"已删除脚本相关资源: {item.path}。Unity 可能短暂重载脚本域。",
+                            $"Deleted script-domain asset: {item.path}. Unity may briefly reload the script domain.",
                             alwaysInclude: true)
                         : ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                            $"资源删除后 Unity 仍在刷新: {item.path}。",
+                            $"Asset deletion completed: {item.path}. Unity may still be refreshing assets.",
                             alwaysInclude: false)
                 };
             }, item => item.path,
@@ -199,65 +199,46 @@ namespace UnitySkills
 
         private class BatchDeleteItem { public string path; }
 
-        [UnitySkill("asset_move_batch", "Move multiple assets. items: JSON array of {sourcePath, destinationPath}")]
+        [UnitySkill("asset_move_batch", "Move multiple assets. items: JSON array of {sourcePath, destinationPath}", TracksWorkflow = true)]
         public static object AssetMoveBatch(string items)
         {
-            if (string.IsNullOrEmpty(items)) return new { error = "items parameter is required." };
-            try {
-                var itemList = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.List<BatchMoveItem>>(items);
-                if (itemList == null || itemList.Count == 0) return new { error = "items empty" };
-                
-                var results = new System.Collections.Generic.List<object>();
-                int successCount = 0;
-                
-                AssetDatabase.StartAssetEditing();
-                try {
-                    foreach (var item in itemList) {
-                        // 安全校验
-                        if (Validate.SafePath(item.sourcePath, "sourcePath") is object srcErr) {
-                            results.Add(new { target = item.sourcePath, success = false, error = ((dynamic)srcErr).error });
-                            continue;
-                        }
-                        if (Validate.SafePath(item.destinationPath, "destinationPath") is object dstErr) {
-                            results.Add(new { target = item.sourcePath, success = false, error = ((dynamic)dstErr).error });
-                            continue;
-                        }
-                        var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(item.sourcePath);
-                        if (asset != null) WorkflowManager.SnapshotObject(asset);
-                        string error = AssetDatabase.MoveAsset(item.sourcePath, item.destinationPath);
-                        if (string.IsNullOrEmpty(error)) {
-                             results.Add(new
-                             {
-                                 target = item.sourcePath,
-                                 success = true,
-                                 from = item.sourcePath,
-                                 to = item.destinationPath,
-                                 serverAvailability =
-                                     (ServerAvailabilityHelper.AffectsScriptDomain(item.sourcePath) || ServerAvailabilityHelper.AffectsScriptDomain(item.destinationPath))
-                                         ? ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                                             $"已移动脚本相关资源: {item.sourcePath} -> {item.destinationPath}。Unity 可能短暂重载脚本域。",
-                                             alwaysInclude: true)
-                                         : ServerAvailabilityHelper.CreateTransientUnavailableNotice(
-                                             $"资源移动后 Unity 仍在刷新: {item.destinationPath}。",
-                                             alwaysInclude: false)
-                             });
-                             successCount++;
-                        } else {
-                             results.Add(new { target = item.sourcePath, success = false, error });
-                        }
-                    }
-                } finally {
-                    AssetDatabase.StopAssetEditing();
-                }
-                AssetDatabase.Refresh();
-                
-                return new { success = true, total = itemList.Count, successCount, results };
-            } catch (System.Exception ex) { return new { error = ex.Message }; }
+            return BatchExecutor.Execute<BatchMoveItem>(items, item =>
+            {
+                if (Validate.SafePath(item.sourcePath, "sourcePath") is object srcErr)
+                    throw new System.Exception(((dynamic)srcErr).error);
+                if (Validate.SafePath(item.destinationPath, "destinationPath") is object dstErr)
+                    throw new System.Exception(((dynamic)dstErr).error);
+
+                var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(item.sourcePath);
+                if (asset != null) WorkflowManager.SnapshotObject(asset);
+
+                string error = AssetDatabase.MoveAsset(item.sourcePath, item.destinationPath);
+                if (!string.IsNullOrEmpty(error))
+                    throw new System.Exception(error);
+
+                return new
+                {
+                    target = item.sourcePath,
+                    success = true,
+                    from = item.sourcePath,
+                    to = item.destinationPath,
+                    serverAvailability =
+                        (ServerAvailabilityHelper.AffectsScriptDomain(item.sourcePath) || ServerAvailabilityHelper.AffectsScriptDomain(item.destinationPath))
+                            ? ServerAvailabilityHelper.CreateTransientUnavailableNotice(
+                                $"Moved script-domain asset: {item.sourcePath} -> {item.destinationPath}. Unity may briefly reload the script domain.",
+                                alwaysInclude: true)
+                            : ServerAvailabilityHelper.CreateTransientUnavailableNotice(
+                                $"Asset move completed: {item.destinationPath}. Unity may still be refreshing assets.",
+                                alwaysInclude: false)
+                };
+            }, item => item.sourcePath ?? item.destinationPath,
+            setup: () => AssetDatabase.StartAssetEditing(),
+            teardown: () => { AssetDatabase.StopAssetEditing(); AssetDatabase.Refresh(); });
         }
 
         private class BatchMoveItem { public string sourcePath; public string destinationPath; }
 
-        [UnitySkill("asset_duplicate", "Duplicate an asset")]
+        [UnitySkill("asset_duplicate", "Duplicate an asset", TracksWorkflow = true)]
         public static object AssetDuplicate(string assetPath)
         {
             if (Validate.SafePath(assetPath, "assetPath") is object err) return err;
@@ -265,7 +246,6 @@ namespace UnitySkills
             var newPath = AssetDatabase.GenerateUniqueAssetPath(assetPath);
             AssetDatabase.CopyAsset(assetPath, newPath);
 
-            // 记录新创建的资产
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(newPath);
             if (asset != null) WorkflowManager.SnapshotCreatedAsset(asset);
 
@@ -280,14 +260,14 @@ namespace UnitySkills
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"已复制脚本相关资源: {assetPath} -> {newPath}。Unity 可能短暂重载脚本域。",
+                    $"Duplicated script-domain asset: {assetPath} -> {newPath}. Unity may briefly reload the script domain.",
                     alwaysInclude: true);
             }
             else
             {
                 ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                     result,
-                    $"资源复制后 Unity 仍在刷新: {newPath}。",
+                    $"Asset duplication completed: {newPath}. Unity may still be refreshing assets.",
                     alwaysInclude: false);
             }
 
@@ -313,18 +293,20 @@ namespace UnitySkills
             return new { count = results.Length, totalFound = guids.Length, assets = results };
         }
 
-        [UnitySkill("asset_create_folder", "Create a new folder in Assets")]
+        [UnitySkill("asset_create_folder", "Create a new folder in Assets", TracksWorkflow = true)]
         public static object AssetCreateFolder(string folderPath)
         {
             if (Validate.SafePath(folderPath, "folderPath") is object pathErr) return pathErr;
-
             if (Directory.Exists(folderPath))
                 return new { error = "Folder already exists" };
 
             var parent = Path.GetDirectoryName(folderPath);
             var name = Path.GetFileName(folderPath);
-
             var guid = AssetDatabase.CreateFolder(parent, name);
+
+            var createdAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(folderPath);
+            if (createdAsset != null) WorkflowManager.SnapshotCreatedAsset(createdAsset);
+
             return new { success = true, path = folderPath, guid };
         }
 
@@ -332,15 +314,18 @@ namespace UnitySkills
         public static object AssetRefresh()
         {
             AssetDatabase.Refresh();
+
             var result = new Dictionary<string, object>
             {
                 ["success"] = true,
                 ["message"] = "Asset database refreshed"
             };
+
             ServerAvailabilityHelper.AttachTransientUnavailableNotice(
                 result,
-                "AssetDatabase.Refresh 期间如果检测到脚本或程序集变化，REST 服务可能短暂不可用。",
+                "AssetDatabase.Refresh may trigger a short asset refresh window. The REST server can be briefly unavailable if Unity starts recompiling scripts.",
                 alwaysInclude: false);
+
             return result;
         }
 

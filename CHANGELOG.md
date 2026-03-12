@@ -1,11 +1,32 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to **UnitySkills** will be documented in this file.
 
-## [1.6.2] - 2026-03-11
+## [1.6.2] - 2026-03-12
+
+### Added
+- **13 个 advisory 设计模块**：在 `unity-skills/skills/` 下新增架构、脚本职责、异步策略、ADR、Inspector 设计、性能审视、可测试性等建议型模块，用于辅助 AI 在真正写脚本前先做设计判断。
+- **Workflow 会话恢复上下文补充**：工作流状态额外暴露 `currentTaskDescription` 等信息，便于 Python 客户端在超时或短暂断连后恢复上下文。
+- **脚本编写后的编译反馈提示**：脚本相关 Skill/文档补充“保存后等待 Unity 自动编译，再主动检查错误日志并继续迭代修复”的引导。
+
+### Changed
+- **Unity 维护基线**：后续新增功能、回归验证与文档基线统一收敛到 `Unity 2022.3+`，当前重点适配目标为 `2022.3+ / Unity 6`。
+- **默认请求超时统一**：Unity 服务端、Python 客户端和用户文档统一以 **15 分钟** 作为默认超时。
+- **脚本生成建议增强**：创建脚本相关提示中，明确要求 AI 主动考虑耦合性、性能、可维护性与 Inspector 体验，而不是只生成可运行代码。
+- **文档与安装说明同步**：更新 `README.md`、`README_EN.md`、`docs/SETUP_GUIDE.md`、`unity-skills/SKILL.md`、`.github` 文档等，补充 `447` 个 REST Skills、`13` 个 advisory 模块、完整 `unity-skills/` 模板目录与编译期短暂不可达说明。
 
 ### Fixed
-- **`DebugSkills.cs` 编译错误**: 修复 `debug_get_logs` 读取日志时 `LogEntryInfo` 对象初始化器使用了不合法的 `file, line` 简写，改为显式成员赋值，解决 `CS0747 Invalid initializer member declarator` 编译失败。
+- **`DebugSkills.cs` 编译错误**：修复 `debug_get_logs` 读取日志时 `LogEntryInfo` 对象初始化器使用了不合法的 `file, line` 简写，改为显式成员赋值，解决 `CS0747 Invalid initializer member declarator` 编译失败。
+- **Workflow 历史可靠性**：为历史数据增加 `schemaVersion` 与迁移处理；补全 `.tmp` 崩溃恢复；恢复历史、撤销、重做时重新校验资产路径，避免信任旧磁盘记录导致的不一致或越界访问。
+- **Workflow 快照去重性能**：`SnapshotObject()` 的去重由线性扫描改为 `HashSet<string>` 索引，避免批量操作时退化为 `O(n^2)`。
+- **Workflow 追踪技能维护方式**：去掉 `SkillRouter` 中硬编码的工作流追踪列表，改为基于 `[UnitySkill(TracksWorkflow = true)]` 自动发现，降低后续漏配风险。
+- **多场景对象查找**：`GameObjectFinder` 不再只搜索活跃场景，改为遍历所有已加载场景，修复多场景编辑下查找失败的问题。
+- **REST 服务稳态与恢复**：`SkillsHttpServer` 增强监听线程准入限流、请求对象池、watchdog/keep-alive 恢复链路，并在脚本编译、Define 变更、资源重导入、包操作等导致短暂不可达时返回明确“稍后重试”提示。
+- **重复限流逻辑**：移除主线程侧重复限流，统一由监听阶段执行请求准入，避免双重限流带来的行为不一致。
+- **Python 客户端稳定性**：统一默认超时为 `900` 秒，复用 `requests.Session`，增强注册表损坏诊断、CLI 数值解析、可重试传输错误识别，以及 `WorkflowContext` 在超时/断连后的状态恢复。
+- **文件 I/O 一致性**：统一更多文件读写为 UTF-8，补齐 `SafePath` 校验顺序，修复部分 Skill 先访问文件再校验路径的问题。
+- **批处理与依赖分析性能**：清理批处理实现分裂，更多路径统一走 `BatchExecutor`；`CleanerSkills` 先建立依赖缓存再分析，移除重复 `GetDependencies()` 带来的性能瓶颈。
+- **文档与注释编码问题**：修复一批中文文本与注释的编码异常，避免 AI 读取和用户查看时出现乱码。
 
 ## [1.6.1] - 2026-03-11
 

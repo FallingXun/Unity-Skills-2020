@@ -10,7 +10,7 @@ namespace UnitySkills
     /// </summary>
     public static class PrefabSkills
     {
-        [UnitySkill("prefab_create", "Create a prefab from a GameObject")]
+        [UnitySkill("prefab_create", "Create a prefab from a GameObject", TracksWorkflow = true)]
         public static object PrefabCreate(string name = null, int instanceId = 0, string path = null, string savePath = null)
         {
             if (Validate.Required(savePath, "savePath") is object reqErr) return reqErr;
@@ -23,16 +23,16 @@ namespace UnitySkills
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            // 使用 SaveAsPrefabAssetAndConnect 将场景物体连接为预制体实例
+            // 浣跨敤 SaveAsPrefabAssetAndConnect 灏嗗満鏅墿浣撹繛鎺ヤ负棰勫埗浣撳疄渚?
             var prefab = PrefabUtility.SaveAsPrefabAssetAndConnect(go, savePath, InteractionMode.UserAction);
 
-            // 记录新创建的预制体资产
+            // 璁板綍鏂板垱寤虹殑棰勫埗浣撹祫浜?
             WorkflowManager.SnapshotCreatedAsset(prefab);
 
             return new { success = true, prefabPath = savePath, name = prefab.name };
         }
 
-        [UnitySkill("prefab_instantiate", "Instantiate a prefab in the scene")]
+        [UnitySkill("prefab_instantiate", "Instantiate a prefab in the scene", TracksWorkflow = true)]
         public static object PrefabInstantiate(string prefabPath, float x = 0, float y = 0, float z = 0, string name = null)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -53,7 +53,7 @@ namespace UnitySkills
             return new { success = true, name = instance.name, instanceId = instance.GetInstanceID() };
         }
 
-        [UnitySkill("prefab_instantiate_batch", "Instantiate multiple prefabs (Efficient). items: JSON array of {prefabPath, x, y, z, name, rotX, rotY, rotZ, scaleX, scaleY, scaleZ}")]
+        [UnitySkill("prefab_instantiate_batch", "Instantiate multiple prefabs (Efficient). items: JSON array of {prefabPath, x, y, z, name, rotX, rotY, rotZ, scaleX, scaleY, scaleZ}", TracksWorkflow = true)]
         public static object PrefabInstantiateBatch(string items)
         {
             // Cache loaded prefabs to avoid repeated AssetDatabase calls
@@ -122,7 +122,7 @@ namespace UnitySkills
             public float scaleZ { get; set; } = 1;
         }
 
-        [UnitySkill("prefab_apply", "Apply all overrides from prefab instance to the source prefab asset. Equivalent to prefab_apply_overrides.")]
+        [UnitySkill("prefab_apply", "Apply all overrides from prefab instance to the source prefab asset. Equivalent to prefab_apply_overrides.", TracksWorkflow = true)]
         public static object PrefabApply(string name = null, int instanceId = 0, string path = null)
         {
             var (go, goErr) = GameObjectFinder.FindOrError(name: name, instanceId: instanceId, path: path);
@@ -139,7 +139,7 @@ namespace UnitySkills
             return new { success = true, appliedTo = prefabPath };
         }
 
-        [UnitySkill("prefab_unpack", "Unpack a prefab instance. completely=false: unpack outermost root only; completely=true: fully unpack all nested prefabs.")]
+        [UnitySkill("prefab_unpack", "Unpack a prefab instance. completely=false: unpack outermost root only; completely=true: fully unpack all nested prefabs.", TracksWorkflow = true)]
         public static object PrefabUnpack(string name = null, int instanceId = 0, string path = null, bool completely = false)
         {
             var (go, findErr) = GameObjectFinder.FindOrError(name: name, instanceId: instanceId, path: path);
@@ -223,7 +223,7 @@ namespace UnitySkills
 
             return new { success = true, appliedTo = prefabPath };
         }
-        [UnitySkill("prefab_create_variant", "Create a prefab variant from an existing prefab")]
+        [UnitySkill("prefab_create_variant", "Create a prefab variant from an existing prefab", TracksWorkflow = true)]
         public static object PrefabCreateVariant(string sourcePrefabPath, string variantPath)
         {
             if (Validate.Required(sourcePrefabPath, "sourcePrefabPath") is object err) return err;

@@ -70,7 +70,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("event_add_listener", "Add a persistent listener to a UnityEvent (Editor time). Supported args: void, int, float, string, bool, Object.")]
+        [UnitySkill("event_add_listener", "Add a persistent listener to a UnityEvent (Editor time). Supported args: void, int, float, string, bool, Object.", TracksWorkflow = true)]
         public static object EventAddListener(
             string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null,
             string targetObjectName = null, string targetComponentName = null, string methodName = null,
@@ -203,7 +203,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("event_remove_listener", "Remove a persistent listener by index")]
+        [UnitySkill("event_remove_listener", "Remove a persistent listener by index", TracksWorkflow = true)]
         public static object EventRemoveListener(string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null, int index = 0)
         {
             var (go, findErr) = GameObjectFinder.FindOrError(name: name, instanceId: instanceId, path: path);
@@ -278,7 +278,7 @@ namespace UnitySkills
             return (evt, component, null);
         }
 
-        [UnitySkill("event_clear_listeners", "Remove all persistent listeners from a UnityEvent")]
+        [UnitySkill("event_clear_listeners", "Remove all persistent listeners from a UnityEvent", TracksWorkflow = true)]
         public static object EventClearListeners(string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null)
         {
             var (evt, comp, err) = FindEvent(name, instanceId, path, componentName, eventName);
@@ -291,7 +291,7 @@ namespace UnitySkills
             return new { success = true, removed = count };
         }
 
-        [UnitySkill("event_set_listener_state", "Set a listener's call state (Off, RuntimeOnly, EditorAndRuntime)")]
+        [UnitySkill("event_set_listener_state", "Set a listener's call state (Off, RuntimeOnly, EditorAndRuntime)", TracksWorkflow = true)]
         public static object EventSetListenerState(string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null, int index = 0, string state = null)
         {
             var (evt, comp, err) = FindEvent(name, instanceId, path, componentName, eventName);
@@ -319,7 +319,7 @@ namespace UnitySkills
             return new { success = true, component = componentName, count = events.Length, events };
         }
 
-        [UnitySkill("event_add_listener_batch", "Add multiple listeners at once. items: JSON array of {targetObjectName, targetComponentName, methodName}")]
+        [UnitySkill("event_add_listener_batch", "Add multiple listeners at once. items: JSON array of {targetObjectName, targetComponentName, methodName}", TracksWorkflow = true)]
         public static object EventAddListenerBatch(string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null, string items = null)
         {
             var list = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BatchListenerItem>>(items);
@@ -328,8 +328,8 @@ namespace UnitySkills
             foreach (var item in list)
             {
                 var result = EventAddListener(name, instanceId, path, componentName, eventName, item.targetObjectName, item.targetComponentName, item.methodName);
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(result);
-                if (!json.Contains("\"error\"")) added++;
+                if (!SkillResultHelper.TryGetError(result, out _))
+                    added++;
             }
             return new { success = true, added, total = list.Count };
         }
@@ -341,7 +341,7 @@ namespace UnitySkills
             public string methodName { get; set; }
         }
 
-        [UnitySkill("event_copy_listeners", "Copy listeners from one event to another")]
+        [UnitySkill("event_copy_listeners", "Copy listeners from one event to another", TracksWorkflow = true)]
         public static object EventCopyListeners(string sourceObject, string sourceComponent, string sourceEvent,
             string targetObject, string targetComponent, string targetEvent)
         {

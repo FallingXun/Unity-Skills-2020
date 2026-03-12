@@ -13,7 +13,7 @@ namespace UnitySkills
     /// </summary>
     public static class SceneSkills
     {
-        [UnitySkill("scene_create", "Create a new empty scene")]
+        [UnitySkill("scene_create", "Create a new empty scene", TracksWorkflow = true)]
         public static object SceneCreate(string scenePath)
         {
             if (Validate.Required(scenePath, "scenePath") is object err) return err;
@@ -42,7 +42,7 @@ namespace UnitySkills
             return new { success = true, sceneName = scene.name, scenePath = scene.path };
         }
 
-        [UnitySkill("scene_save", "Save the current scene")]
+        [UnitySkill("scene_save", "Save the current scene", TracksWorkflow = true)]
         public static object SceneSave(string scenePath = null)
         {
             if (!string.IsNullOrEmpty(scenePath) && Validate.SafePath(scenePath, "scenePath") is object pathErr) return pathErr;

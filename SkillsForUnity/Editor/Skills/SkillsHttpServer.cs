@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -41,21 +42,19 @@ namespace UnitySkills
         private static bool _updateHooked = false;
         private static int _pendingRequests = 0;
         
-        // Rate limiting (processed on main thread only)
-        private static int _requestsThisSecond = 0;
-        private static long _lastRateLimitResetTicks = 0;
         private const int MaxRequestsPerSecond = 100;
         private const int MaxQueuedRequests = 200;
         private const int MaxPendingRequests = 300;
+        private static readonly ConcurrentBag<RequestJob> _requestJobPool = new ConcurrentBag<RequestJob>();
 
-        // Admission limiting on listener thread to avoid queue/thread blowups before main-thread rate limiting kicks in
+        // Admission limiting on the listener thread to avoid queue and thread blowups.
         private static int _admittedThisSecond = 0;
         private static long _lastAdmissionResetTicks = 0;
         
-        // Keep-alive polling interval (ms) — how often the keep-alive thread checks for pending jobs
+        // Keep-alive polling interval (ms) for checking pending jobs.
         private const int KeepAlivePollingMs = 50;
 
-        // Keep-alive forced wakeup — configurable interval for unconditional main-thread wakeup
+        // Configurable interval for unconditional main-thread wakeup.
         private const string PrefKeyKeepAliveInterval = "UnitySkills_KeepAliveIntervalSeconds";
 
         /// <summary>
@@ -69,7 +68,7 @@ namespace UnitySkills
             set => EditorPrefs.SetInt(PrefKeyKeepAliveInterval, Mathf.Max(1, value));
         }
         // Request processing timeout - cached for thread safety (EditorPrefs is main-thread only)
-        private static int _cachedTimeoutMs = 60 * 60 * 1000;
+        private static int _cachedTimeoutMs = 15 * 60 * 1000;
         private static int RequestTimeoutMs => _cachedTimeoutMs;
         internal static void RefreshTimeoutCache() => _cachedTimeoutMs = RequestTimeoutMinutes * 60 * 1000;
         // Maximum allowed POST body size
@@ -93,7 +92,7 @@ namespace UnitySkills
         private static long _totalRequestsProcessed = 0;
         private static long _totalRequestsReceived = 0;
         
-        // JSON 序列化设置，禁用 Unicode 转义确保中文正确显示
+        // Keep Unicode readable instead of forcing escaped sequences.
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
             StringEscapeHandling = StringEscapeHandling.Default
@@ -179,7 +178,43 @@ namespace UnitySkills
             public string ResponseJson;
             public int StatusCode;
             public bool IsProcessed;
-            public ManualResetEventSlim CompletionSignal;
+            public bool ResponseDispatched;
+            public int PoolReturned;
+            public ManualResetEventSlim CompletionSignal = new ManualResetEventSlim(false);
+
+            public void Prepare(HttpListenerContext context, string httpMethod, string path, string body, string requestId, string agentId)
+            {
+                Context = context;
+                HttpMethod = httpMethod;
+                Path = path;
+                Body = body;
+                EnqueueTimeTicks = DateTime.UtcNow.Ticks;
+                RequestId = requestId;
+                AgentId = agentId;
+                ResponseJson = null;
+                StatusCode = 200;
+                IsProcessed = false;
+                ResponseDispatched = false;
+                PoolReturned = 0;
+                CompletionSignal.Reset();
+            }
+
+            public void Reset()
+            {
+                Context = null;
+                HttpMethod = null;
+                Path = null;
+                Body = null;
+                EnqueueTimeTicks = 0;
+                RequestId = null;
+                AgentId = null;
+                ResponseJson = null;
+                StatusCode = 200;
+                IsProcessed = false;
+                ResponseDispatched = false;
+                PoolReturned = 0;
+                CompletionSignal.Reset();
+            }
         }
 
         // Request ID counter
@@ -199,6 +234,26 @@ namespace UnitySkills
         {
             if (Interlocked.Decrement(ref _pendingRequests) < 0)
                 Interlocked.Exchange(ref _pendingRequests, 0);
+        }
+
+        private static RequestJob RentRequestJob()
+        {
+            if (_requestJobPool.TryTake(out var job))
+                return job;
+
+            return new RequestJob();
+        }
+
+        private static void ReturnRequestJob(RequestJob job)
+        {
+            if (job == null)
+                return;
+
+            if (Interlocked.Exchange(ref job.PoolReturned, 1) == 1)
+                return;
+
+            job.Reset();
+            _requestJobPool.Add(job);
         }
 
         private static bool CheckAdmissionRateLimit()
@@ -280,15 +335,31 @@ namespace UnitySkills
 
         private static void SendImmediateJsonResponse(HttpListenerContext context, HttpListenerRequest request, int statusCode, object payload)
         {
-            var job = new RequestJob
+            HttpListenerResponse response = null;
+            try
             {
-                Context = context,
-                StatusCode = statusCode,
-                ResponseJson = JsonConvert.SerializeObject(payload, _jsonSettings),
-                RequestId = $"req_{Interlocked.Increment(ref _requestIdCounter):X8}",
-                AgentId = DetectAgent(request)
-            };
-            SendResponse(job);
+                response = context.Response;
+                response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, X-Agent-Id");
+                response.Headers.Add("Access-Control-Allow-Origin", "*");
+                response.Headers.Add("X-Request-Id", $"req_{Interlocked.Increment(ref _requestIdCounter):X8}");
+                response.Headers.Add("X-Agent-Id", DetectAgent(request));
+                response.StatusCode = statusCode;
+
+                string responseJson = JsonConvert.SerializeObject(payload, _jsonSettings);
+                byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
+                response.ContentType = "application/json; charset=utf-8";
+                response.ContentLength64 = buffer.Length;
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch
+            {
+                // Ignore write errors. The client may have already disconnected.
+            }
+            finally
+            {
+                try { response?.Close(); } catch { }
+            }
         }
 
         // Agent detection table - keyword to agent ID mapping
@@ -750,26 +821,17 @@ namespace UnitySkills
                         }
                     }
                     
-                    ManualResetEventSlim signal = null;
+                    RequestJob job = null;
                     try
                     {
-                        signal = new ManualResetEventSlim(false);
-
-                        // Create job with raw data only - use DateTime (thread-safe) instead of Unity time
-                        var job = new RequestJob
-                        {
-                            Context = context,
-                            HttpMethod = request.HttpMethod,
-                            Path = request.Url.AbsolutePath,
-                            Body = body,
-                            EnqueueTimeTicks = DateTime.UtcNow.Ticks,
-                            RequestId = $"req_{Interlocked.Increment(ref _requestIdCounter):X8}",
-                            AgentId = DetectAgent(request),
-                            StatusCode = 200,
-                            ResponseJson = null,
-                            IsProcessed = false,
-                            CompletionSignal = signal
-                        };
+                        job = RentRequestJob();
+                        job.Prepare(
+                            context,
+                            request.HttpMethod,
+                            request.Url.AbsolutePath,
+                            body,
+                            $"req_{Interlocked.Increment(ref _requestIdCounter):X8}",
+                            DetectAgent(request));
 
                         Interlocked.Increment(ref _totalRequestsReceived);
 
@@ -798,13 +860,14 @@ namespace UnitySkills
                         // This is thread-safe - just waiting on a signal
                         ThreadPool.QueueUserWorkItem(_ => WaitAndRespond(job));
                         handedOffToResponder = true;
-                        signal = null; // Ownership transferred to WaitAndRespond
+                        job = null; // Ownership transferred to WaitAndRespond
                     }
                     finally
                     {
                         if (reservedPendingSlot && !handedOffToResponder)
                             ReleasePendingSlot();
-                        signal?.Dispose(); // Only disposes if WaitAndRespond was never queued
+                        if (job != null)
+                            ReturnRequestJob(job);
                     }
                 }
                 catch (HttpListenerException ex)
@@ -834,22 +897,26 @@ namespace UnitySkills
         /// </summary>
         private static void WaitAndRespond(RequestJob job)
         {
+            bool completed = false;
             try
             {
                 // Wait for main thread to process (with timeout)
-                bool completed = job.CompletionSignal.Wait(RequestTimeoutMs);
+                completed = job.CompletionSignal.Wait(RequestTimeoutMs);
                 
                 if (!completed)
                 {
                     job.StatusCode = 504;
                     job.ResponseJson = JsonConvert.SerializeObject(new {
                         error = $"Gateway Timeout: Main thread did not respond within {RequestTimeoutMs / 1000} seconds",
-                        suggestion = "Unity Editor may be paused or showing a modal dialog"
+                        suggestion = _domainReloadPending
+                            ? "Unity is reloading scripts. Wait a few seconds and retry."
+                            : "Unity Editor may be paused or showing a modal dialog"
                     }, _jsonSettings);
                 }
                 
                 // Send HTTP response (thread-safe)
                 SendResponse(job);
+                job.ResponseDispatched = true;
             }
             catch (Exception)
             {
@@ -859,13 +926,15 @@ namespace UnitySkills
                     job.StatusCode = 500;
                     job.ResponseJson = JsonConvert.SerializeObject(new { error = "Internal server error" }, _jsonSettings);
                     SendResponse(job);
+                    job.ResponseDispatched = true;
                 }
                 catch { }
             }
             finally
             {
-                job.CompletionSignal?.Dispose();
                 ReleasePendingSlot();
+                if (completed)
+                    ReturnRequestJob(job);
             }
         }
         
@@ -945,6 +1014,8 @@ namespace UnitySkills
                     job.CompletionSignal?.Set();
                     Interlocked.Increment(ref _totalRequestsProcessed);
                     GameObjectFinder.InvalidateCache();
+                    if (job.ResponseDispatched)
+                        ReturnRequestJob(job);
                 }
                 
                 processed++;
@@ -1013,6 +1084,7 @@ namespace UnitySkills
                     autoRestart = AutoStart,
                     restartPending = Interlocked.CompareExchange(ref _restartRequested, 0, 0) == 1,
                     listenerHealthy = IsListenerHealthy(),
+                    isCompiling = ServerAvailabilityHelper.IsCompilationInProgress(),
                     keepAliveIntervalSeconds = KeepAliveIntervalSeconds,
                     watchdogIntervalSeconds = WatchdogInterval,
                     requestTimeoutMinutes = RequestTimeoutMinutes,
@@ -1034,14 +1106,14 @@ namespace UnitySkills
             // Execute skill
             if (path.StartsWith("/skill/") && job.HttpMethod == "POST")
             {
-                // Rate limiting (now safe - on main thread)
-                if (!CheckRateLimit())
+                if (_domainReloadPending || ServerAvailabilityHelper.IsCompilationInProgress())
                 {
-                    job.StatusCode = 429;
+                    job.StatusCode = 503;
                     job.ResponseJson = JsonConvert.SerializeObject(new {
-                        error = "Rate limit exceeded",
-                        limit = MaxRequestsPerSecond,
-                        suggestion = "Please slow down requests"
+                        error = "Unity is compiling or reloading scripts",
+                        suggestion = "The REST server is temporarily unavailable during compilation. Wait a few seconds and retry.",
+                        retryAfterSeconds = 5,
+                        retryStrategy = "wait_and_retry"
                     }, _jsonSettings);
                     return;
                 }
@@ -1083,24 +1155,6 @@ namespace UnitySkills
                 error = "Not found",
                 endpoints = new[] { "GET /skills", "POST /skill/{name}", "GET /health" }
             }, _jsonSettings);
-        }
-
-        /// <summary>
-        /// Rate limiting check. MUST be called from main thread only.
-        /// Uses DateTime for consistent timing (NOT EditorApplication.timeSinceStartup).
-        /// </summary>
-        private static bool CheckRateLimit()
-        {
-            long now = DateTime.UtcNow.Ticks;
-
-            if (now - _lastRateLimitResetTicks >= TimeSpan.TicksPerSecond)
-            {
-                _requestsThisSecond = 0;
-                _lastRateLimitResetTicks = now;
-            }
-
-            _requestsThisSecond++;
-            return _requestsThisSecond <= MaxRequestsPerSecond;
         }
 
         private static void RunSelfTest()

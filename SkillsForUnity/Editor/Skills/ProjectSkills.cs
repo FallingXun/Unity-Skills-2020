@@ -294,7 +294,7 @@ namespace UnitySkills
         {
             var manifestPath = "Packages/manifest.json";
             if (!File.Exists(manifestPath)) return new { error = "manifest.json not found" };
-            var json = File.ReadAllText(manifestPath);
+            var json = File.ReadAllText(manifestPath, System.Text.Encoding.UTF8);
             return new { success = true, manifest = json };
         }
 
@@ -312,7 +312,7 @@ namespace UnitySkills
             return new { success = true, count = tags.Length, tags };
         }
 
-        [UnitySkill("project_add_tag", "Add a custom Tag")]
+        [UnitySkill("project_add_tag", "Add a custom Tag", TracksWorkflow = true)]
         public static object ProjectAddTag(string tagName)
         {
             var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
@@ -345,7 +345,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("project_set_quality_level", "Switch quality level by index or name")]
+        [UnitySkill("project_set_quality_level", "Switch quality level by index or name", TracksWorkflow = true)]
         public static object ProjectSetQualityLevel(int level = -1, string levelName = null)
         {
             if (!string.IsNullOrEmpty(levelName))

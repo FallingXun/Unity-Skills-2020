@@ -9,7 +9,7 @@ namespace UnitySkills
     /// </summary>
     public static class LightSkills
     {
-        [UnitySkill("light_create", "Create a new light (Directional, Point, Spot, Area)")]
+        [UnitySkill("light_create", "Create a new light (Directional, Point, Spot, Area)", TracksWorkflow = true)]
         public static object LightCreate(
             string name = "New Light",
             string lightType = "Point",
@@ -76,7 +76,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("light_set_properties", "Set light properties (supports name/instanceId/path)")]
+        [UnitySkill("light_set_properties", "Set light properties (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object LightSetProperties(
             string name = null, int instanceId = 0, string path = null,
             float? r = null, float? g = null, float? b = null,
@@ -195,7 +195,7 @@ namespace UnitySkills
             return new { count = results.Length, lights = results };
         }
 
-        [UnitySkill("light_set_enabled", "Enable or disable a light (supports name/instanceId/path). Returns: {success, name, enabled}")]
+        [UnitySkill("light_set_enabled", "Enable or disable a light (supports name/instanceId/path). Returns: {success, name, enabled}", TracksWorkflow = true)]
         public static object LightSetEnabled(string name = null, int instanceId = 0, string path = null, bool enabled = true)
         {
             var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
@@ -286,7 +286,7 @@ namespace UnitySkills
             public string shadows { get; set; }
         }
 
-        [UnitySkill("light_add_probe_group", "Add a Light Probe Group to a GameObject. Optional grid layout: gridX/gridY/gridZ (count per axis), spacingX/spacingY/spacingZ (meters between probes)")]
+        [UnitySkill("light_add_probe_group", "Add a Light Probe Group to a GameObject. Optional grid layout: gridX/gridY/gridZ (count per axis), spacingX/spacingY/spacingZ (meters between probes)", TracksWorkflow = true)]
         public static object LightAddProbeGroup(string name = null, int instanceId = 0, string path = null,
             int gridX = 0, int gridY = 0, int gridZ = 0,
             float spacingX = 2f, float spacingY = 1.5f, float spacingZ = 2f)
@@ -319,7 +319,7 @@ namespace UnitySkills
                 existed, hasGrid = gridX > 0 && gridY > 0 && gridZ > 0 };
         }
 
-        [UnitySkill("light_add_reflection_probe", "Create a Reflection Probe at a position")]
+        [UnitySkill("light_add_reflection_probe", "Create a Reflection Probe at a position", TracksWorkflow = true)]
         public static object LightAddReflectionProbe(string probeName = "ReflectionProbe", float x = 0, float y = 1, float z = 0,
             float sizeX = 10, float sizeY = 10, float sizeZ = 10, int resolution = 256)
         {

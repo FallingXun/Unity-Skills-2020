@@ -819,7 +819,7 @@ namespace UnitySkills
             var dir = Path.GetDirectoryName(savePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
-            File.WriteAllText(savePath, sb.ToString());
+            File.WriteAllText(savePath, sb.ToString(), new UTF8Encoding(false));
             AssetDatabase.ImportAsset(savePath);
 
             return new
@@ -918,7 +918,7 @@ namespace UnitySkills
             foreach (var (path, className) in userScriptPaths)
             {
                 string rawSource;
-                try { rawSource = File.ReadAllText(path); } catch { continue; }
+                try { rawSource = File.ReadAllText(path, System.Text.Encoding.UTF8); } catch { continue; }
 
                 // Strip comments to avoid false positives (preserve string literals, keep char offsets)
                 var source = RxComment.Replace(rawSource, m => m.Groups[1].Success ? m.Value : new string(' ', m.Length));
@@ -1105,7 +1105,7 @@ namespace UnitySkills
                 var dir = Path.GetDirectoryName(savePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(savePath, md);
+                File.WriteAllText(savePath, md, new UTF8Encoding(false));
                 AssetDatabase.ImportAsset(savePath);
                 savedPath = savePath;
             }

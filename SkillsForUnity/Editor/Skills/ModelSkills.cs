@@ -78,7 +78,7 @@ namespace UnitySkills
             if (importer == null)
                 return new { error = $"Not a model file or asset not found: {assetPath}" };
 
-            // 修改前记录资产状态
+            // 淇敼鍓嶈褰曡祫浜х姸鎬?
             var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
             if (asset != null) WorkflowManager.SnapshotObject(asset);
 
@@ -359,7 +359,7 @@ namespace UnitySkills
             return new { success = true, path = assetPath, importAnimation = importer.importAnimation, clipCount = clips.Length, clips, clipDefinitions = clipDefs };
         }
 
-        [UnitySkill("model_set_animation_clips", "Configure animation clip splitting. clips: JSON array of {name, firstFrame, lastFrame, loop}")]
+        [UnitySkill("model_set_animation_clips", "Configure animation clip splitting. clips: JSON array of {name, firstFrame, lastFrame, loop}", TracksWorkflow = true)]
         public static object ModelSetAnimationClips(string assetPath, string clips)
         {
             if (Validate.Required(assetPath, "assetPath") is object err) return err;
@@ -404,7 +404,7 @@ namespace UnitySkills
                 optimizeGameObjects = importer.optimizeGameObjects, isHuman = importer.animationType == ModelImporterAnimationType.Human };
         }
 
-        [UnitySkill("model_set_rig", "Set rig/skeleton binding type. animationType: None/Legacy/Generic/Humanoid")]
+        [UnitySkill("model_set_rig", "Set rig/skeleton binding type. animationType: None/Legacy/Generic/Humanoid", TracksWorkflow = true)]
         public static object ModelSetRig(string assetPath, string animationType, string avatarSetup = null)
         {
             if (Validate.Required(assetPath, "assetPath") is object err) return err;

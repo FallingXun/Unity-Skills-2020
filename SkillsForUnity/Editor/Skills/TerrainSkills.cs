@@ -10,7 +10,7 @@ namespace UnitySkills
     /// </summary>
     public static class TerrainSkills
     {
-        [UnitySkill("terrain_create", "Create a new Terrain with TerrainData asset")]
+        [UnitySkill("terrain_create", "Create a new Terrain with TerrainData asset", TracksWorkflow = true)]
         public static object TerrainCreate(
             string name = "Terrain",
             int width = 500,
@@ -109,7 +109,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("terrain_set_height", "Set terrain height at normalized coordinates (0-1)")]
+        [UnitySkill("terrain_set_height", "Set terrain height at normalized coordinates (0-1)", TracksWorkflow = true)]
         public static object TerrainSetHeight(
             float normalizedX, float normalizedZ, float height,
             string name = null, int instanceId = 0)
@@ -141,7 +141,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("terrain_set_heights_batch", "Set terrain heights in a rectangular region. Heights is a 2D array [z][x] with values 0-1.")]
+        [UnitySkill("terrain_set_heights_batch", "Set terrain heights in a rectangular region. Heights is a 2D array [z][x] with values 0-1.", TracksWorkflow = true)]
         public static object TerrainSetHeightsBatch(
             int startX, int startZ,
             float[][] heights,
@@ -455,7 +455,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("terrain_paint_texture", "Paint terrain texture layer at normalized position. Requires terrain layers to be set up.")]
+        [UnitySkill("terrain_paint_texture", "Paint terrain texture layer at normalized position. Requires terrain layers to be set up.", TracksWorkflow = true)]
         public static object TerrainPaintTexture(
             float normalizedX, float normalizedZ,
             int layerIndex,

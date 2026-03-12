@@ -4,7 +4,6 @@ using System;
 using System.IO;
 using System.Text;
 using System.Linq;
-using System.Reflection;
 using System.Collections.Generic;
 
 namespace UnitySkills
@@ -240,7 +239,7 @@ namespace UnitySkills
             if (File.Exists(agentsPath))
             {
                 // File exists, check if unity-skills is already declared
-                var content = File.ReadAllText(agentsPath);
+                var content = File.ReadAllText(agentsPath, Encoding.UTF8);
                 if (!content.Contains("unity-skills"))
                 {
                     // Append unity-skills entry
@@ -272,7 +271,7 @@ This file declares available skills for AI agents like Codex.
             var agentsPath = AgentsMdPath;
             if (!File.Exists(agentsPath)) return;
 
-            var content = File.ReadAllText(agentsPath);
+            var content = File.ReadAllText(agentsPath, Encoding.UTF8);
             if (content.Contains("unity-skills"))
             {
                 // Remove unity-skills related lines
@@ -305,20 +304,12 @@ This file declares available skills for AI agents like Codex.
             // CRITICAL: Use UTF-8 WITHOUT BOM for Gemini CLI compatibility
             // Gemini CLI cannot parse YAML frontmatter if BOM (EF BB BF) is present at start of file
             var utf8NoBom = new UTF8Encoding(false);
+            CopyTemplateDirectory(GetSkillTemplateRoot(), targetPath, utf8NoBom);
 
-            var skillMd = GenerateSkillMd();
-            // Normalize line endings to LF for cross-platform compatibility
-            skillMd = skillMd.Replace("\r\n", "\n");
-            File.WriteAllText(Path.Combine(targetPath, "SKILL.md"), skillMd, utf8NoBom);
-
-            var pythonHelper = GeneratePythonHelper();
-            pythonHelper = pythonHelper.Replace("\r\n", "\n");
+            // Write agent config for automatic agent identification
             var scriptsPath = Path.Combine(targetPath, "scripts");
             if (!Directory.Exists(scriptsPath))
                 Directory.CreateDirectory(scriptsPath);
-            File.WriteAllText(Path.Combine(scriptsPath, "unity_skills.py"), pythonHelper, utf8NoBom);
-
-            // Write agent config for automatic agent identification
             var agentConfig = $"{{\"agentId\": \"{agentId}\", \"installedAt\": \"{DateTime.UtcNow:O}\"}}";
             File.WriteAllText(Path.Combine(scriptsPath, "agent_config.json"), agentConfig, utf8NoBom);
 
@@ -326,153 +317,67 @@ This file declares available skills for AI agents like Codex.
             return (true, targetPath);
         }
 
-        private static string GenerateSkillMd()
+        private static string GetSkillTemplateRoot()
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("---");
-            // Gemini CLI requires: lowercase, alphanumeric and dashes only
-            sb.AppendLine("name: unity-skills");
-            // CRITICAL: Description must be single-line double-quoted string for Gemini CLI compatibility
-            sb.AppendLine("description: \"Unity Editor automation via REST API. Control GameObjects, components, scenes, materials, prefabs, lights, and more with 100+ professional tools.\"");
-            sb.AppendLine("---");
-            sb.AppendLine();
-            sb.AppendLine("# Unity Editor Control Skill");
-            sb.AppendLine();
-            sb.AppendLine("You are an expert Unity developer. This skill enables you to directly control Unity Editor through a REST API.");
-            sb.AppendLine("Use the Python helper script in `scripts/unity_skills.py` to execute Unity operations.");
-            sb.AppendLine();
-            sb.AppendLine("## Prerequisites");
-            sb.AppendLine();
-            sb.AppendLine("1. Unity Editor must be running with the UnitySkills package installed");
-            sb.AppendLine("2. REST server must be started: **Window > UnitySkills > Start Server**");
-            sb.AppendLine("3. Server endpoint: `http://localhost:8090`");
-            sb.AppendLine();
-            sb.AppendLine("## Quick Start");
-            sb.AppendLine();
-            sb.AppendLine("```python");
-            sb.AppendLine("# Import the helper from the scripts/ directory");
-            sb.AppendLine("import sys");
-            sb.AppendLine("sys.path.insert(0, 'scripts')  # Adjust path to skill's scripts directory");
-            sb.AppendLine("from unity_skills import call_skill, is_unity_running, wait_for_unity");
-            sb.AppendLine();
-            sb.AppendLine("# Check if Unity is ready");
-            sb.AppendLine("if is_unity_running():");
-            sb.AppendLine("    # Create a cube");
-            sb.AppendLine("    call_skill('gameobject_create', name='MyCube', primitiveType='Cube', x=0, y=1, z=0)");
-            sb.AppendLine("    # Set its color to red");
-            sb.AppendLine("    call_skill('material_set_color', name='MyCube', r=1, g=0, b=0)");
-            sb.AppendLine("```");
-            sb.AppendLine();
-            sb.AppendLine("## ⚠️ Important: Script Creation & Domain Reload");
-            sb.AppendLine();
-            sb.AppendLine("When creating C# scripts with `script_create`, Unity recompiles all scripts (Domain Reload).");
-            sb.AppendLine("The server temporarily stops during compilation and auto-restarts.");
-            sb.AppendLine();
-            sb.AppendLine("```python");
-            sb.AppendLine("# After creating a script, check compilation feedback");
-            sb.AppendLine("result = call_skill('script_create', name='MyScript', template='MonoBehaviour')");
-            sb.AppendLine("if result.get('success') and result.get('compilation', {}).get('isCompiling'):");
-            sb.AppendLine("    wait_for_unity(timeout=10)");
-            sb.AppendLine("    feedback = call_skill('script_get_compile_feedback', scriptPath=result['path'])");
-            sb.AppendLine("```");
-            sb.AppendLine();
-            sb.AppendLine("## Workflow Examples");
-            sb.AppendLine();
-            sb.AppendLine("### Create a Game Scene");
-            sb.AppendLine("```python");
-            sb.AppendLine("# 1. Create ground");
-            sb.AppendLine("call_skill('gameobject_create', name='Ground', primitiveType='Plane', x=0, y=0, z=0)");
-            sb.AppendLine("call_skill('gameobject_set_transform', name='Ground', scaleX=5, scaleY=1, scaleZ=5)");
-            sb.AppendLine();
-            sb.AppendLine("# 2. Create player");
-            sb.AppendLine("call_skill('gameobject_create', name='Player', primitiveType='Capsule', x=0, y=1, z=0)");
-            sb.AppendLine("call_skill('component_add', name='Player', componentType='Rigidbody')");
-            sb.AppendLine();
-            sb.AppendLine("# 3. Add lighting");
-            sb.AppendLine("call_skill('light_create', name='Sun', lightType='Directional', intensity=1.5)");
-            sb.AppendLine();
-            sb.AppendLine("# 4. Save the scene");
-            sb.AppendLine("call_skill('scene_save', scenePath='Assets/Scenes/GameScene.unity')");
-            sb.AppendLine("```");
-            sb.AppendLine();
-            sb.AppendLine("### Create UI Menu");
-            sb.AppendLine("```python");
-            sb.AppendLine("call_skill('ui_create_canvas', name='MainMenu')");
-            sb.AppendLine("call_skill('ui_create_text', name='Title', parent='MainMenu', text='My Game', fontSize=48)");
-            sb.AppendLine("call_skill('ui_create_button', name='PlayBtn', parent='MainMenu', text='Play', width=200, height=50)");
-            sb.AppendLine("```");
-            sb.AppendLine();
-            sb.AppendLine("## Available Skills");
-            
-            // Dynamic Reflection Logic
-            var skillsByCategory = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<System.Reflection.MethodInfo>>();
-            
-            var allTypes = System.AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a => !a.IsDynamic)
-                .SelectMany(a => { try { return a.GetTypes(); } catch { return new System.Type[0]; } });
+            string templateRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "unity-skills"));
+            if (!Directory.Exists(templateRoot))
+                throw new DirectoryNotFoundException($"unity-skills template folder not found: {templateRoot}");
 
-            foreach (var type in allTypes)
+            return templateRoot;
+        }
+
+        private static void CopyTemplateDirectory(string sourceRoot, string targetRoot, Encoding encoding)
+        {
+            foreach (var directory in Directory.GetDirectories(sourceRoot, "*", SearchOption.AllDirectories))
             {
-                foreach (var method in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
-                {
-                    var attr = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<UnitySkillAttribute>(method);
-                    if (attr != null)
-                    {
-                        var category = type.Name.Replace("Skills", "");
-                        if (!skillsByCategory.ContainsKey(category))
-                            skillsByCategory[category] = new System.Collections.Generic.List<System.Reflection.MethodInfo>();
+                string relativePath = Path.GetRelativePath(sourceRoot, directory);
+                if (ShouldSkipTemplatePath(relativePath))
+                    continue;
 
-                        skillsByCategory[category].Add(method);
-                    }
-                }
+                Directory.CreateDirectory(Path.Combine(targetRoot, relativePath));
             }
 
-            foreach (var category in skillsByCategory.Keys.OrderBy(k => k))
+            foreach (var file in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
             {
-                sb.AppendLine();
-                sb.AppendLine($"### {category}");
-                foreach (var method in skillsByCategory[category])
-                {
-                    var attr = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<UnitySkillAttribute>(method);
-                    var skillName = attr.Name ?? method.Name;
-                    var description = attr.Description ?? "";
-                    
-                    var parameters = method.GetParameters()
-                        .Select(p => p.Name)
-                        .ToArray();
-                    var paramStr = string.Join(", ", parameters);
-                    
-                    sb.AppendLine($"- `{skillName}({paramStr})` - {description}");
-                }
+                string relativePath = Path.GetRelativePath(sourceRoot, file);
+                if (ShouldSkipTemplatePath(relativePath))
+                    continue;
+
+                string destination = Path.Combine(targetRoot, relativePath);
+                string destinationDirectory = Path.GetDirectoryName(destination);
+                if (!string.IsNullOrEmpty(destinationDirectory) && !Directory.Exists(destinationDirectory))
+                    Directory.CreateDirectory(destinationDirectory);
+
+                WriteTemplateFile(file, destination, encoding);
+            }
+        }
+
+        private static bool ShouldSkipTemplatePath(string relativePath)
+        {
+            string normalized = relativePath.Replace('\\', '/');
+            return normalized.Contains("/__pycache__/") ||
+                   normalized.EndsWith("/__pycache__", StringComparison.OrdinalIgnoreCase) ||
+                   normalized.EndsWith(".pyc", StringComparison.OrdinalIgnoreCase) ||
+                   normalized.EndsWith("agent_config.json", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void WriteTemplateFile(string sourceFile, string destinationFile, Encoding encoding)
+        {
+            string extension = Path.GetExtension(sourceFile);
+            bool isTextTemplate =
+                extension.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".py", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".txt", StringComparison.OrdinalIgnoreCase);
+
+            if (!isTextTemplate)
+            {
+                File.Copy(sourceFile, destinationFile, true);
+                return;
             }
 
-            sb.AppendLine();
-            sb.AppendLine("## Skill Directory Structure");
-            sb.AppendLine();
-            sb.AppendLine("```");
-            sb.AppendLine("unity-skills/");
-            sb.AppendLine("├── SKILL.md          # This file - skill entry point");
-            sb.AppendLine("└── scripts/");
-            sb.AppendLine("    └── unity_skills.py  # Python helper with call_skill(), is_unity_running(), etc.");
-            sb.AppendLine("```");
-            sb.AppendLine();
-            sb.AppendLine("## Direct REST API");
-            sb.AppendLine();
-            sb.AppendLine("Direct REST calls can be made to the local UnitySkills server.");
-            sb.AppendLine();
-            sb.AppendLine("```bash");
-            sb.AppendLine("# Health check");
-            sb.AppendLine("curl http://localhost:8090/health");
-            sb.AppendLine();
-            sb.AppendLine("# List all available skills");
-            sb.AppendLine("curl http://localhost:8090/skills");
-            sb.AppendLine();
-            sb.AppendLine("# Execute a skill");
-            sb.AppendLine("curl -X POST http://localhost:8090/skill/gameobject_create \\");
-            sb.AppendLine("  -H 'Content-Type: application/json' \\");
-            sb.AppendLine("  -d '{\"name\":\"MyCube\", \"primitiveType\":\"Cube\"}'");
-            sb.AppendLine("```");
-            return sb.ToString();
+            var content = File.ReadAllText(sourceFile, Encoding.UTF8).Replace("\r\n", "\n");
+            File.WriteAllText(destinationFile, content, encoding);
         }
 
         private static string GenerateAntigravityWorkflow()
@@ -521,15 +426,6 @@ This file declares available skills for AI agents like Codex.
             sb.AppendLine("- **Domain Reload**: Be aware that creating scripts triggers a domain reload.");
             
             return sb.ToString();
-        }
-
-        private static string GeneratePythonHelper()
-        {
-            string helperPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "unity-skills", "scripts", "unity_skills.py"));
-            if (!File.Exists(helperPath))
-                throw new FileNotFoundException("unity_skills.py template not found", helperPath);
-
-            return File.ReadAllText(helperPath, Encoding.UTF8);
         }
     }
 }

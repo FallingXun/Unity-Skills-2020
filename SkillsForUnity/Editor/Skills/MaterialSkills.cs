@@ -99,7 +99,7 @@ namespace UnitySkills
         
         #region Material Creation & Assignment
 
-        [UnitySkill("material_create", "Create a new material (auto-detects render pipeline if shader not specified). savePath can be a folder or full path.")]
+        [UnitySkill("material_create", "Create a new material (auto-detects render pipeline if shader not specified). savePath can be a folder or full path.", TracksWorkflow = true)]
         public static object MaterialCreate(string name, string shaderName = null, string savePath = null)
         {
             if (!string.IsNullOrEmpty(savePath) && Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
@@ -168,7 +168,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("material_assign", "Assign a material asset to a renderer (supports name/instanceId/path)")]
+        [UnitySkill("material_assign", "Assign a material asset to a renderer (supports name/instanceId/path)", TracksWorkflow = true)]
         public static object MaterialAssign(string name = null, int instanceId = 0, string path = null, string materialPath = null)
         {
             if (Validate.Required(materialPath, "materialPath") is object err) return err;
@@ -191,30 +191,28 @@ namespace UnitySkills
             return new { success = true, gameObject = go.name, material = materialPath };
         }
 
-        [UnitySkill("material_create_batch", "Create multiple materials (Efficient). items: JSON array of {name, shaderName?, savePath?}")]
+        [UnitySkill("material_create_batch", "Create multiple materials (Efficient). items: JSON array of {name, shaderName?, savePath?}", TracksWorkflow = true)]
         public static object MaterialCreateBatch(string items)
         {
             return BatchExecutor.Execute<BatchMaterialCreateItem>(items, item =>
             {
                 var result = MaterialCreate(item.name, item.shaderName, item.savePath);
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(result);
-                if (json.Contains("\"error\""))
-                    throw new System.Exception(((dynamic)result).error);
+                if (SkillResultHelper.TryGetError(result, out string errorText))
+                    throw new System.Exception(errorText);
                 return result;
             }, item => item.name);
         }
 
         private class BatchMaterialCreateItem { public string name { get; set; } public string shaderName { get; set; } public string savePath { get; set; } }
 
-        [UnitySkill("material_assign_batch", "Assign materials to multiple objects (Efficient). items: JSON array of {name, materialPath}")]
+        [UnitySkill("material_assign_batch", "Assign materials to multiple objects (Efficient). items: JSON array of {name, materialPath}", TracksWorkflow = true)]
         public static object MaterialAssignBatch(string items)
         {
             return BatchExecutor.Execute<BatchMaterialAssignItem>(items, item =>
             {
                 var result = MaterialAssign(name: item.name, instanceId: item.instanceId, path: item.path, materialPath: item.materialPath);
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(result);
-                if (json.Contains("\"error\""))
-                    throw new System.Exception(((dynamic)result).error);
+                if (SkillResultHelper.TryGetError(result, out string errorText))
+                    throw new System.Exception(errorText);
                 return result;
             }, item => item.name ?? item.path);
         }
@@ -264,7 +262,7 @@ namespace UnitySkills
         
         #region Color & Emission
 
-        [UnitySkill("material_set_color", "Set a color property on a material with optional HDR intensity for emission")]
+        [UnitySkill("material_set_color", "Set a color property on a material with optional HDR intensity for emission", TracksWorkflow = true)]
         public static object MaterialSetColor(string name = null, int instanceId = 0, string path = null, 
             float r = 1, float g = 1, float b = 1, float a = 1, 
             string propertyName = null, float intensity = 1.0f)
@@ -332,7 +330,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("material_set_colors_batch", "Set colors on multiple GameObjects in a single call. items is a JSON array like [{name:'Obj1',r:1,g:0,b:0},{name:'Obj2',r:0,g:1,b:0}]. Much more efficient than calling material_set_color multiple times.")]
+        [UnitySkill("material_set_colors_batch", "Set colors on multiple GameObjects in a single call. items is a JSON array like [{name:'Obj1',r:1,g:0,b:0},{name:'Obj2',r:0,g:1,b:0}]. Much more efficient than calling material_set_color multiple times.", TracksWorkflow = true)]
         public static object MaterialSetColorsBatch(string items = null, string propertyName = null)
         {
             // Auto-detect color property if not specified
@@ -380,7 +378,7 @@ namespace UnitySkills
             public float a { get; set; } = 1f;
         }
 
-        [UnitySkill("material_set_emission", "Set emission color with HDR intensity and auto-enable emission")]
+        [UnitySkill("material_set_emission", "Set emission color with HDR intensity and auto-enable emission", TracksWorkflow = true)]
         public static object MaterialSetEmission(string name = null, int instanceId = 0, string path = null,
             float r = 1, float g = 1, float b = 1, float intensity = 1.0f, bool enableEmission = true)
         {
@@ -446,9 +444,8 @@ namespace UnitySkills
             {
                 var result = MaterialSetEmission(name: item.name, instanceId: item.instanceId, path: item.path,
                     r: item.r, g: item.g, b: item.b, intensity: item.intensity > 0 ? item.intensity : 1f, enableEmission: item.enableEmission);
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(result);
-                if (json.Contains("\"error\""))
-                    throw new System.Exception(((dynamic)result).error);
+                if (SkillResultHelper.TryGetError(result, out string errorText))
+                    throw new System.Exception(errorText);
                 return result;
             }, item => item.name ?? item.path);
         }
@@ -459,7 +456,7 @@ namespace UnitySkills
         
         #region Property Setters
 
-        [UnitySkill("material_set_texture", "Set a texture on a material (auto-detects property name for render pipeline)")]
+        [UnitySkill("material_set_texture", "Set a texture on a material (auto-detects property name for render pipeline)", TracksWorkflow = true)]
         public static object MaterialSetTexture(string name = null, int instanceId = 0, string path = null, string texturePath = null, string propertyName = null)
         {
             if (Validate.Required(texturePath, "texturePath") is object err) return err;
@@ -491,7 +488,7 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("material_set_float", "Set a float property on a material")]
+        [UnitySkill("material_set_float", "Set a float property on a material", TracksWorkflow = true)]
         public static object MaterialSetFloat(string name = null, int instanceId = 0, string path = null, string propertyName = null, float value = 0)
         {
             if (Validate.Required(propertyName, "propertyName") is object err) return err;
@@ -669,7 +666,7 @@ namespace UnitySkills
             };
         }
         
-        [UnitySkill("material_set_shader", "Change the shader of a material")]
+        [UnitySkill("material_set_shader", "Change the shader of a material", TracksWorkflow = true)]
         public static object MaterialSetShader(string name = null, int instanceId = 0, string path = null, string shaderName = null)
         {
             if (Validate.Required(shaderName, "shaderName") is object err) return err;
