@@ -326,15 +326,12 @@ This file declares available skills for AI agents like Codex.
             if (Directory.Exists(templateRoot))
                 return templateRoot;
 
-            // 2. Try relative to UPM package resolved path
+            // 2. Try inside UPM package (unity-skills~ is a tilde-hidden dir bundled with the package)
             string resolvedPath = null;
-
-            // 2a. FindForAssembly — works when compiled assembly maps to a package
             var packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(SkillInstaller).Assembly);
             if (packageInfo != null)
                 resolvedPath = packageInfo.resolvedPath;
 
-            // 2b. Fallback: FindForAssetPath — works even when FindForAssembly fails
             if (string.IsNullOrEmpty(resolvedPath))
             {
                 packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.besty.unity-skills");
@@ -344,16 +341,17 @@ This file declares available skills for AI agents like Codex.
 
             if (!string.IsNullOrEmpty(resolvedPath))
             {
-                // For git packages with ?path=SkillsForUnity:
-                //   resolvedPath = .../PackageCache/com.besty.unity-skills@hash/SkillsForUnity
-                //   unity-skills/ is at the repo root (parent of resolvedPath)
+                // Tilde-hidden directory bundled inside the package
+                templateRoot = Path.GetFullPath(Path.Combine(resolvedPath, "unity-skills~"));
+                if (Directory.Exists(templateRoot))
+                    return templateRoot;
+
+                // Sibling of package root (git ?path= full repo clone)
                 templateRoot = Path.GetFullPath(Path.Combine(resolvedPath, "..", "unity-skills"));
                 if (Directory.Exists(templateRoot))
                     return templateRoot;
 
-                // For git packages without ?path= or embedded packages:
-                //   resolvedPath = .../PackageCache/com.besty.unity-skills@hash
-                //   unity-skills/ might be a child of resolvedPath
+                // Child of package root
                 templateRoot = Path.GetFullPath(Path.Combine(resolvedPath, "unity-skills"));
                 if (Directory.Exists(templateRoot))
                     return templateRoot;
@@ -361,9 +359,8 @@ This file declares available skills for AI agents like Codex.
 
             throw new DirectoryNotFoundException(
                 $"unity-skills template folder not found. " +
-                $"Checked: project root ({Path.GetFullPath(Path.Combine(Application.dataPath, ".."))}) " +
-                $"and package path ({resolvedPath ?? "not found"}). " +
-                $"Ensure the package is installed via git URL with the full repository.");
+                $"Checked: project root, package path ({resolvedPath ?? "N/A"}). " +
+                $"Please reinstall the package.");
         }
 
         private static void CopyTemplateDirectory(string sourceRoot, string targetRoot, Encoding encoding)
