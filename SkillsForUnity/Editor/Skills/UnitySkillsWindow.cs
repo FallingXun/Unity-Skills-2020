@@ -14,6 +14,8 @@ namespace UnitySkills
     {
         private Vector2 _scrollPosition;
         private Vector2 _historyScrollPosition;
+        private Vector2 _serverScrollPosition;
+        private Vector2 _configScrollPosition;
         private bool _serverRunning;
         private string _testSkillName = "";
         private string _testSkillParams = "{}";
@@ -50,7 +52,7 @@ namespace UnitySkills
         public static void ShowWindow()
         {
             var window = GetWindow<UnitySkillsWindow>("UnitySkills");
-            window.minSize = new Vector2(450, 500);
+            window.minSize = new Vector2(300, 300);
         }
 
         private void OnEnable()
@@ -155,6 +157,8 @@ namespace UnitySkills
 
         private void DrawServerTab()
         {
+            _serverScrollPosition = EditorGUILayout.BeginScrollView(_serverScrollPosition);
+
             // Server Status Card
             DrawColoredBox(HeaderBgColor, () =>
             {
@@ -327,6 +331,8 @@ namespace UnitySkills
                     EditorGUILayout.TextArea(_testResult, GUILayout.Height(80));
                 }
             });
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawSkillsTab()
@@ -402,6 +408,8 @@ namespace UnitySkills
 
         private void DrawAIConfigTab()
         {
+            _configScrollPosition = EditorGUILayout.BeginScrollView(_configScrollPosition);
+
             EditorGUILayout.LabelField(L("skill_config"), EditorStyles.boldLabel);
             EditorGUILayout.Space(10);
 
@@ -885,6 +893,8 @@ namespace UnitySkills
                     : "Project Install: Install skill to current Unity project\nGlobal Install: Install skill to user folder, available for all projects\n\nNote: Gemini CLI requires enabling experimental.skills in /settings\nNote: Codex requires restart to load new skills",
                 MessageType.Info
             );
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawHistoryTab()
@@ -1046,15 +1056,27 @@ namespace UnitySkills
             EditorGUILayout.EndScrollView();
         }
 
+        // Cached GUIStyles to avoid per-frame allocation
+        private GUIStyle _cachedBoldStyle;
+        private GUIStyle _cachedNormalStyle;
+
         private string L(string key) => Localization.Get(key);
 
         // Helper methods for colored UI elements
         private void DrawColoredLabel(string text, Color color, bool bold)
         {
-            var style = bold ? new GUIStyle(EditorStyles.boldLabel) : new GUIStyle(EditorStyles.label);
-            style.normal.textColor = color;
-            style.wordWrap = true;
-            EditorGUILayout.LabelField(text, style);
+            if (bold)
+            {
+                if (_cachedBoldStyle == null) { _cachedBoldStyle = new GUIStyle(EditorStyles.boldLabel) { wordWrap = true }; }
+                _cachedBoldStyle.normal.textColor = color;
+                EditorGUILayout.LabelField(text, _cachedBoldStyle);
+            }
+            else
+            {
+                if (_cachedNormalStyle == null) { _cachedNormalStyle = new GUIStyle(EditorStyles.label) { wordWrap = true }; }
+                _cachedNormalStyle.normal.textColor = color;
+                EditorGUILayout.LabelField(text, _cachedNormalStyle);
+            }
         }
 
         private void DrawColoredBox(Color bgColor, System.Action content)
