@@ -22,6 +22,8 @@ description: "Unity lighting control. Use when users want to create or configure
 - For reflection probes → `light_add_reflection_probe` (this module)
 - For light probe groups → `light_add_probe_group` (this module)
 
+> **Object Targeting**: All single-object skills accept `name` (string) and `instanceId` (int, preferred). Provide at least one. `path` (hierarchy path) is also accepted where noted.
+
 ## Skills Overview
 
 | Single Object | Batch Version | Use Batch When |
@@ -78,12 +80,14 @@ Configure light properties.
 | `shadows` | string | No | none/hard/soft |
 
 ### light_set_properties_batch
-Configure multiple lights.
+Configure multiple lights. Each item accepts: `name`/`instanceId`/`path` (identifier) + `r`, `g`, `b`, `intensity`, `range`, `shadows` (all optional).
+
+**Returns**: `{success, count, results: [{success, name}]}`
 
 ```python
 unity_skills.call_skill("light_set_properties_batch", items=[
-    {"name": "Light1", "intensity": 2.0},
-    {"name": "Light2", "intensity": 2.0},
+    {"name": "Light1", "intensity": 2.0, "r": 1, "g": 0.9, "b": 0.8},
+    {"instanceId": 12345, "intensity": 1.5, "shadows": "soft"},
     {"name": "Light3", "intensity": 2.0}
 ])
 ```
@@ -99,6 +103,8 @@ Enable or disable a light.
 
 ### light_set_enabled_batch
 Enable or disable multiple lights.
+
+**Returns**: `{success, count, results: [{success, name, enabled}]}`
 
 ```python
 unity_skills.call_skill("light_set_enabled_batch", items=[

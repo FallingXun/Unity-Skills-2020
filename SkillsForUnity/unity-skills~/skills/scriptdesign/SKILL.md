@@ -21,6 +21,8 @@ Use this skill before creating gameplay scripts, or after scripts are generated 
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Prefer descriptive names over local shorthand.
 - Do not “optimize” readability away for imagined productivity gains.
 - Do not recommend complex patterns if a smaller refactor fixes the real problem.

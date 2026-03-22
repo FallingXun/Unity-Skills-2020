@@ -7,6 +7,13 @@ description: "Unity Inspector design advisor. Use when users want better Seriali
 
 Use this skill when scripts need to be easier to author, configure, and review in the Inspector.
 
+## Guardrails
+
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
+- Prefer `[SerializeField] private` over unnecessary public fields.
+- Do not over-decorate with attributes when simple naming suffices.
+
 ## Default Rules
 
 - Prefer `private` fields with `[SerializeField]` over unnecessary public fields.

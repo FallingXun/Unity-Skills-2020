@@ -47,6 +47,8 @@ Set any property on VCam or its pipeline components.
 Set Follow and LookAt targets.
 **Parameters:**
 - `vcamName` (string): Name of the VCam.
+- `instanceId` (int, optional): VCam Instance ID (preferred for precision).
+- `path` (string, optional): VCam hierarchy path.
 - `followName` (string, optional): GameObject name to follow.
 - `lookAtName` (string, optional): GameObject name to look at.
 
@@ -58,8 +60,13 @@ Switch VCam pipeline component (Body/Aim/Noise).
 - `componentType` (string): Type name (e.g. "OrbitalFollow", "Composer") or "None" to remove.
 
 ### `cinemachine_add_component`
-(Deprecated: Use `cinemachine_set_component` for better pipeline control)
-Add a Cinemachine component.
+> **DEPRECATED** — Use `cinemachine_set_component` instead for proper pipeline control (Body/Aim/Noise stages).
+Add a Cinemachine component (legacy, supports CM2 and CM3).
+**Parameters:**
+- `vcamName` (string): Name of the VCam.
+- `instanceId` (int, optional): VCam Instance ID.
+- `path` (string, optional): VCam hierarchy path.
+- `componentType` (string): Type name (e.g., "OrbitalFollow").
 
 ### `cinemachine_set_lens`
 Quickly configure Lens settings (FOV, Near, Far, OrthoSize).

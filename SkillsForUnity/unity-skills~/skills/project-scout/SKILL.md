@@ -40,5 +40,7 @@ Collect only the information needed to avoid clashing with the current project:
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Do not propose a clean-slate architecture if the project already has a consistent pattern.
 - Do not recommend new dependencies until the current stack is clear.

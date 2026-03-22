@@ -26,5 +26,7 @@ Use this skill when scene setup needs to be explicit instead of relying on hidde
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Prefer explicit scene wiring over chains of runtime `Find`.
 - Keep bootstrap objects small and focused.

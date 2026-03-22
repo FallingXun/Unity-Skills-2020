@@ -27,5 +27,7 @@ Use this when architecture choices may be revisited later or when multiple plaus
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Keep ADRs short.
 - Record only decisions that materially affect code generation or architecture direction.

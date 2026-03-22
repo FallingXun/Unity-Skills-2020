@@ -23,6 +23,19 @@ All notable changes to **UnitySkills** will be documented in this file.
 - **REST Skills 总数**：512 → 513（+1 prefab_set_property）。
 - **Prefab 模块**：10 → 11 skills。
 
+### Docs (SKILL.md 文档质量审计与修复 — 20 文件)
+- **Batch Skill 返回值补全**：为 gameobject/component/light 三个模块共 12 个 batch 技能补全 `**Returns**` 结构文档（`gameobject_create/delete/duplicate/rename/set_transform/set_active/set_parent/set_layer/set_tag_batch` + `component_add/remove/set_property_batch` + `light_set_properties/set_enabled_batch`）。
+- **三元定位参数补全**：修复 `gameobject_set_transform`、`gameobject_set_parent`、`gameobject_set_active` 缺失的 `instanceId`/`path` 参数文档；`gameobject_set_parent` 参数名从 `name`/`parentName` 修正为 C# 实际签名 `childName`/`childInstanceId`/`childPath`/`parentName`/`parentInstanceId`/`parentPath`（6 参数完整文档）。
+- **Object Targeting 统一说明**：为 gameobject、component、light 三个功能模块顶部新增"Object Targeting"注释段落，说明所有单对象 Skill 支持 `name`/`instanceId`/`path` 三元定位。
+- **Batch 参数文档增强**：`gameobject_set_parent_batch` 补全 6 参数说明 + 三种定位方式示例；`light_set_properties_batch` 补全全部可用参数（identifier + `r`/`g`/`b`/`intensity`/`range`/`shadows`）+ 混合示例。
+- **`component_set_property` 类型示例**：新增 5 种 `value` 参数类型的用法示例（float/bool、Vector3 JSON、Color JSON、Enum 字符串），消除类型模糊导致的幻觉风险。
+- **Component 技能可见性**：`component_set_enabled` 和 `component_copy` 从 "Additional Skills" 部分提升到 Skills Overview 表格，提高 AI 发现率。
+- **Advisory 模块 Mode 自声明**：13 个 advisory 模块（architecture/adr/performance/asmdef/blueprints/script-roles/scene-contracts/testability/patterns/async/inspector/scriptdesign/project-scout）新增 `**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills` 声明，实现 52/52 模块 SKILL.md 全覆盖 Mode 标记（8 SA + 31 FA + 13 Both）。
+- **缺失 Guardrails 补建**：为 patterns、async、inspector 三个 advisory 模块新建 `## Guardrails` 段落（含 Mode 声明和反模式指导），实现全部 advisory 模块 Guardrails 100% 覆盖。
+- **Cinemachine deprecated 增强**：`cinemachine_add_component` 弃用标记从行内括号改为醒目 blockquote `> **DEPRECATED**`，并补全 `instanceId`/`path`/`componentType` 参数文档。
+- **`cinemachine_set_targets` 参数补全**：新增 `instanceId` 和 `path` 参数说明，支持精确定位 VCam。
+- **Terrain layerIndex 说明**：`terrain_paint_texture` 的 `layerIndex` 参数补充"0-based"说明和 `terrain_get_info` 查询引导。
+
 ## [1.6.4] - 2026-03-15
 
 ### Added

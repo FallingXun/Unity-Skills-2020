@@ -31,5 +31,7 @@ Use this skill for a high-signal review of likely Unity performance issues. Focu
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Do not recommend large refactors without a meaningful hotspot.
 - Do not replace simple code with unreadable “optimized” code unless the hot path is real.

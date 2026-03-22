@@ -41,6 +41,8 @@ When using this skill, structure the advice as:
 
 ## Guardrails
 
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
 - Do not start from a giant reusable framework unless the project truly needs it.
 - Do not add layers just to satisfy textbook SOLID wording.
 - Prefer a small architecture that can grow, not an impressive one that slows iteration.

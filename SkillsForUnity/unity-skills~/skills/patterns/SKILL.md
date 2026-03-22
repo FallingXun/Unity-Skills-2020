@@ -7,9 +7,11 @@ description: "Unity design pattern selector. Use when users want advice on Scrip
 
 Use this skill to decide whether a pattern is justified. Do not recommend every pattern at once.
 
-## Rule
+## Guardrails
 
-Recommend at most 1-3 patterns, and explain why simpler options are not enough.
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
+- Recommend at most 1-3 patterns, and explain why simpler options are not enough.
 
 ## Pattern Guide
 

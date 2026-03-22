@@ -22,6 +22,8 @@ description: "GameObject component management. Use when users want to add, remov
 - To set multiple properties at once → use `component_set_property_batch`
 - To enable/disable a component → `component_set_enabled` (not `component_set_property`)
 
+> **Object Targeting**: All single-object skills accept `name` (string), `instanceId` (int, preferred), and `path` (string, hierarchy path). Provide at least one.
+
 ## Skills Overview
 
 | Single Object | Batch Version | Use Batch When |
@@ -30,9 +32,11 @@ description: "GameObject component management. Use when users want to add, remov
 | `component_remove` | `component_remove_batch` | Removing from 2+ objects |
 | `component_set_property` | `component_set_property_batch` | Setting on 2+ objects |
 
-**Query Skills** (no batch needed):
+**Other Skills** (no batch):
 - `component_list` - List all components on an object
 - `component_get_properties` - Get component property values
+- `component_set_enabled` - Enable/disable a component (Behaviour, Renderer, Collider)
+- `component_copy` - Copy a component from one object to another
 
 ---
 
@@ -89,6 +93,25 @@ Set a component property value.
 
 > Provide one of: `value` (basic types), `referencePath`/`referenceName` (scene objects), or `assetPath` (project assets).
 
+**`value` type examples**:
+```python
+# float / int / bool / string
+call_skill("component_set_property", name="Obj", componentType="Rigidbody", propertyName="mass", value=2.5)
+call_skill("component_set_property", name="Obj", componentType="Rigidbody", propertyName="useGravity", value=False)
+
+# Vector3 (JSON object with x, y, z)
+call_skill("component_set_property", name="Obj", componentType="Transform", propertyName="localPosition",
+           value={"x": 1, "y": 2, "z": 3})
+
+# Color (JSON object with r, g, b, a — values 0-1)
+call_skill("component_set_property", name="Obj", componentType="Light", propertyName="color",
+           value={"r": 1, "g": 0.5, "b": 0, "a": 1})
+
+# Enum (use string name)
+call_skill("component_set_property", name="Obj", componentType="Rigidbody", propertyName="interpolation",
+           value="Interpolate")
+```
+
 **Returns**: `{success, gameObject, componentType, property, oldValue, newValue}`
 
 ### component_get_properties
@@ -109,6 +132,8 @@ Get all properties of a component.
 ### component_add_batch
 Add components to multiple objects.
 
+**Returns**: `{success, count, results: [{success, gameObject, componentType, added}]}`
+
 ```python
 unity_skills.call_skill("component_add_batch", items=[
     {"name": "Enemy1", "componentType": "Rigidbody"},
@@ -120,6 +145,8 @@ unity_skills.call_skill("component_add_batch", items=[
 ### component_remove_batch
 Remove components from multiple objects.
 
+**Returns**: `{success, count, results: [{success, gameObject, componentType, removed}]}`
+
 ```python
 unity_skills.call_skill("component_remove_batch", items=[
     {"instanceId": 12345, "componentType": "BoxCollider"},
@@ -129,6 +156,8 @@ unity_skills.call_skill("component_remove_batch", items=[
 
 ### component_set_property_batch
 Set properties on multiple objects.
+
+**Returns**: `{success, count, results: [{success, gameObject, componentType, property, oldValue, newValue}]}`
 
 ```python
 unity_skills.call_skill("component_set_property_batch", items=[

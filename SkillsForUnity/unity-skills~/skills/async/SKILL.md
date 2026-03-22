@@ -7,6 +7,13 @@ description: "Unity async and lifecycle strategy advisor. Use when users want to
 
 Use this skill when the user is deciding how runtime work should be scheduled or cleaned up.
 
+## Guardrails
+
+**Mode**: Both (Semi-Auto + Full-Auto) — advisory only, no REST skills
+
+- Do not recommend `UniTask` just because it looks more advanced than coroutine.
+- Prefer the simplest scheduling model that fits the use case.
+
 ## Decision Ladder
 
 1. First ask whether the task needs per-frame work at all.
