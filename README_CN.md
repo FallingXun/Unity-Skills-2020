@@ -118,7 +118,7 @@ https://github.com/Besty0728/Unity-Skills.git?path=/SkillsForUnity#v1.6.0
 
 > **Codex 特别说明**：推荐使用**全局安装**。项目级安装需要在 `AGENTS.md` 中声明才能识别，全局安装后重启 Codex 即可。
 
-📘 需要更完整的安装与使用说明，请查看：[docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)
+📘 需要更完整的安装与使用说明，请查看：[安装指南](docs/SETUP_GUIDE_CN.md) | [Setup Guide](docs/SETUP_GUIDE.md)
 
 <details>
 <summary><h3>4. 手动安装 Skills（可选）</h3></summary>

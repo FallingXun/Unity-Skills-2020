@@ -118,7 +118,7 @@ In Unity, click menu: `Window > UnitySkills > Start Server`
 
 > **Codex Note**: **Global installation** is recommended. Project-level installation requires declaration in `AGENTS.md` to be recognized; after global installation, restart Codex to use.
 
-📘 For complete installation and usage instructions, see: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)
+📘 For complete installation and usage instructions, see: [Setup Guide](docs/SETUP_GUIDE.md) | [安装指南](docs/SETUP_GUIDE_CN.md)
 
 <details>
 <summary><h3>4. Manual Skills Installation (Optional)</h3></summary>
