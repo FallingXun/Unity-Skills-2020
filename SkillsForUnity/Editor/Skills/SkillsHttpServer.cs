@@ -1141,6 +1141,14 @@ namespace UnitySkills
                 job.ResponseJson = SkillRouter.GetRecommendations(job.QueryString);
                 return;
             }
+
+            // Skill dependency chain
+            if (path == "/skills/chain" && job.HttpMethod == "GET")
+            {
+                job.StatusCode = 200;
+                job.ResponseJson = SkillRouter.GetSkillChain(job.QueryString);
+                return;
+            }
             
             // Execute skill
             if (path.StartsWith("/skill/") && job.HttpMethod == "POST")
@@ -1172,6 +1180,14 @@ namespace UnitySkills
                     return;
                 }
                 
+                // Dry-run mode: validate parameters without executing
+                if (job.QueryString != null && job.QueryString.IndexOf("dryRun=true", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    job.StatusCode = 200;
+                    job.ResponseJson = SkillRouter.DryRun(skillName, job.Body);
+                    return;
+                }
+
                 // Execute skill (safe - on main thread)
                 try
                 {
@@ -1198,7 +1214,7 @@ namespace UnitySkills
             job.StatusCode = 404;
             job.ResponseJson = JsonConvert.SerializeObject(new {
                 error = "Not found",
-                endpoints = new[] { "GET /skills", "POST /skill/{name}", "GET /health" }
+                endpoints = new[] { "GET /skills", "GET /skills/recommend", "GET /skills/chain", "POST /skill/{name}", "POST /skill/{name}?dryRun=true", "GET /health" }
             }, _jsonSettings);
         }
 
