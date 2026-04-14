@@ -3,7 +3,6 @@ using UnityEditor;
 using System.IO;
 using System.Linq;
 using UnityEditor.Experimental.SceneManagement;
-using System;
 using UnityEditor.SceneManagement;
 
 namespace UnitySkills
@@ -581,7 +580,7 @@ namespace UnitySkills
             AssetDatabase.OpenAsset(prefab);
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
 
-            bool enteredStage = prefabStage != null && string.Equals(prefabStage.assetPath, prefabPath, StringComparison.OrdinalIgnoreCase) && prefabStage.prefabContentsRoot != null;
+            bool enteredStage = prefabStage != null && string.Equals(prefabStage.assetPath, prefabPath, System.StringComparison.OrdinalIgnoreCase) && prefabStage.prefabContentsRoot != null;
             if (!enteredStage)
             {
                 return new { error = $"Failed to open prefab stage for {prefabPath}" };
