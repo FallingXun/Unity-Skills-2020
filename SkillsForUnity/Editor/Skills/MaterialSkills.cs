@@ -904,9 +904,11 @@ namespace UnitySkills
                         var tex = material.GetTexture(propName);
                         textures.Add(new { name = propName, description = propDesc, value = tex != null ? tex.name : null });
                         break;
-                    //case UnityEngine.Rendering.ShaderPropertyType.Int:
-                    //    integers.Add(new { name = propName, description = propDesc, value = material.GetInt(propName) });
-                    //    break;
+#if UNITY_2022_3_OR_NEWER
+                    case UnityEngine.Rendering.ShaderPropertyType.Int:
+                        integers.Add(new { name = propName, description = propDesc, value = material.GetInt(propName) });
+                        break;
+#endif
                 }
             }
 
@@ -964,6 +966,6 @@ namespace UnitySkills
             };
         }
         
-        #endregion
+#endregion
     }
 }

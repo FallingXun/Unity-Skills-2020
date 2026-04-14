@@ -2,8 +2,12 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Linq;
-using UnityEditor.Experimental.SceneManagement;
+#if UNITY_2022_3_OR_NEWER
 using UnityEditor.SceneManagement;
+#else
+using UnityEditor.SceneManagement;
+using UnityEditor.Experimental.SceneManagement;
+#endif
 
 namespace UnitySkills
 {
@@ -425,7 +429,7 @@ namespace UnitySkills
             };
         }
 
-        #region Prefab SerializedProperty Helpers
+#region Prefab SerializedProperty Helpers
 
         /// <summary>
         /// Find a SerializedProperty by name with Unity naming convention fallbacks (m_PropertyName, _propertyName).
@@ -563,7 +567,7 @@ namespace UnitySkills
             return names.ToArray();
         }
 
-        #endregion
+#endregion
 
         [UnitySkill("prefab_stage_open", "Open prefab stage for the source prefab asset.",
             Category = SkillCategory.Prefab, Operation = SkillOperation.Open,
@@ -577,9 +581,12 @@ namespace UnitySkills
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null) return new { error = $"Prefab not found: {prefabPath}" };
 
+#if UNITY_2022_3_OR_NEWER
+            var prefabStage = PrefabStageUtility.OpenPrefab(prefabPath);
+#else
             AssetDatabase.OpenAsset(prefab);
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
-
+#endif
             bool enteredStage = prefabStage != null && string.Equals(prefabStage.assetPath, prefabPath, System.StringComparison.OrdinalIgnoreCase) && prefabStage.prefabContentsRoot != null;
             if (!enteredStage)
             {

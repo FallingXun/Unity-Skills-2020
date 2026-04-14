@@ -284,10 +284,10 @@ namespace UnitySkills
             Name ""ForwardLit""
             Tags {{ ""LightMode""=""UniversalForward"" }}
             HLSLPROGRAM
-#pragma vertex vert
-#pragma fragment frag
-# include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl""
-# include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl""
+            #pragma vertex vert
+            #pragma fragment frag
+            # include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl""
+            # include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl""
             struct Attributes {{ float4 positionOS : POSITION; float2 uv : TEXCOORD0; float3 normalOS : NORMAL; }};
             struct Varyings {{ float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float3 normalWS : TEXCOORD1; }};
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -311,9 +311,9 @@ namespace UnitySkills
         Pass
         {{
             HLSLPROGRAM
-#pragma vertex vert
-#pragma fragment frag
-# include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl""
+            #pragma vertex vert
+            #pragma fragment frag
+            # include ""Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl""
             struct Attributes {{ float4 positionOS : POSITION; float2 uv : TEXCOORD0; }};
             struct Varyings {{ float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; }};
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);

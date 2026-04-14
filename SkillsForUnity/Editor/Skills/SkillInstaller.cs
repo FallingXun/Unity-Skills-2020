@@ -306,12 +306,12 @@ This file declares available skills for AI agents like Codex.
             var utf8NoBom = new UTF8Encoding(false);
             CopyTemplateDirectory(GetSkillTemplateRoot(), targetPath, utf8NoBom);
 
-            // Write agent config for automatic agent identification
-            var scriptsPath = Path.Combine(targetPath, "scripts");
-            if (!Directory.Exists(scriptsPath))
-                Directory.CreateDirectory(scriptsPath);
-            var agentConfig = $"{{\"agentId\": \"{agentId}\", \"installedAt\": \"{DateTime.UtcNow:O}\"}}";
-            File.WriteAllText(Path.Combine(scriptsPath, "agent_config.json"), agentConfig, utf8NoBom);
+            //// Write agent config for automatic agent identification
+            //var scriptsPath = Path.Combine(targetPath, "scripts");
+            //if (!Directory.Exists(scriptsPath))
+            //    Directory.CreateDirectory(scriptsPath);
+            //var agentConfig = $"{{\"agentId\": \"{agentId}\", \"installedAt\": \"{DateTime.UtcNow:O}\"}}";
+            //File.WriteAllText(Path.Combine(scriptsPath, "agent_config.json"), agentConfig, utf8NoBom);
 
             SkillsLogger.Log($"Installed skill to: {targetPath} (Agent: {agentId})");
             return (true, targetPath);

@@ -71,7 +71,11 @@ namespace UnitySkills
                     if (!string.IsNullOrEmpty(filter))
                         results = results.Where(l => l.message.Contains(filter));
 
+#if UNITY_2022_3_OR_NEWER
+                    var captured = results.TakeLast(limit).Select(l => new
+#else
                     var captured = results.Select(l => new
+#endif
                     {
                         type = l.type.ToString(),
                         message = l.message,
