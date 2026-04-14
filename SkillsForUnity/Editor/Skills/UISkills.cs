@@ -26,15 +26,16 @@ namespace UnitySkills
         /// </summary>
         private static bool IsTMPAvailable()
         {
-            if (!_tmpChecked)
-            {
-                _tmpChecked = true;
-                _tmpTextType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
-                _tmpInputFieldType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
-                _tmpDropdownType = Type.GetType("TMPro.TMP_Dropdown, Unity.TextMeshPro");
-                _tmpAvailable = _tmpTextType != null;
-            }
-            return _tmpAvailable;
+            return false;
+            // if (!_tmpChecked)
+            // {
+            //     _tmpChecked = true;
+            //     _tmpTextType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            //     _tmpInputFieldType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            //     _tmpDropdownType = Type.GetType("TMPro.TMP_Dropdown, Unity.TextMeshPro");
+            //     _tmpAvailable = _tmpTextType != null;
+            // }
+            // return _tmpAvailable;
         }
 
         /// <summary>

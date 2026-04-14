@@ -42,8 +42,8 @@ namespace UnitySkills
             // Cinemachine (multiple versions)
             "Cinemachine.",
             "Unity.Cinemachine.",
-            // TextMeshPro
-            "TMPro.",
+            // // TextMeshPro
+            // "TMPro.",
             // Input System
             "UnityEngine.InputSystem.",
             // XR
@@ -573,7 +573,7 @@ namespace UnitySkills
                 "UnityEngine",
                 "UnityEngine.UI",
                 "UnityEngine.CoreModule",
-                "Unity.TextMeshPro",
+                // "Unity.TextMeshPro",
                 "Unity.Cinemachine",
                 "Cinemachine",
                 "Unity.InputSystem",

@@ -249,14 +249,6 @@ unity_skills.call_skill("ui_create_batch", items=[
 ])
 ```
 
-## TextMeshPro Support
-
-UI Skills auto-detect TextMeshPro:
-- **With TMP**: Uses `TextMeshProUGUI`
-- **Without TMP**: Falls back to legacy `UnityEngine.UI.Text`
-
-Response includes `usingTMP` field to indicate which was used.
-
 ## New Element Creation Skills
 
 ### ui_create_dropdown

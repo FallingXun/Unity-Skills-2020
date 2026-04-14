@@ -4,11 +4,6 @@
 
 ---
 
-## TextMesh Pro Documentation | Unity UI | 2.0.0
-
-**URL:** https://docs.unity3d.com/Manual/com.unity.textmeshpro.html
-
----
 
 ## Unity - Manual: Canvas Shader Graph
 
