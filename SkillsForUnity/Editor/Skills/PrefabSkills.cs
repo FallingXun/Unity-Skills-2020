@@ -2,6 +2,9 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Linq;
+using UnityEditor.Experimental.SceneManagement;
+using System;
+using UnityEditor.SceneManagement;
 
 namespace UnitySkills
 {
@@ -562,5 +565,75 @@ namespace UnitySkills
         }
 
         #endregion
+
+        [UnitySkill("prefab_stage_open", "Open prefab stage for the source prefab asset.",
+            Category = SkillCategory.Prefab, Operation = SkillOperation.Open,
+            Tags = new[] { "prefab", "open", "stage"},
+            Outputs = new[] { "prefabPath", "openedPrefabPath", "rootName", "enteredPrefabStage" },
+            RequiresInput = new[] { "prefabPath" },
+            TracksWorkflow = true)]
+        public static object PrefabStageOpen(string prefabPath)
+        {
+            if (Validate.Required(prefabPath, "prefabPath") is object err) return err;
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null) return new { error = $"Prefab not found: {prefabPath}" };
+
+            AssetDatabase.OpenAsset(prefab);
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+
+            bool enteredStage = prefabStage != null && string.Equals(prefabStage.assetPath, prefabPath, StringComparison.OrdinalIgnoreCase) && prefabStage.prefabContentsRoot != null;
+            if (!enteredStage)
+            {
+                return new { error = $"Failed to open prefab stage for {prefabPath}" };
+            }
+            return new { success = true, prefabPath = prefabPath, openedPrefabPath = prefabStage.assetPath, rootName = prefabStage.prefabContentsRoot.name, enteredPrefabStage = enteredStage };
+        }
+
+        [UnitySkill("prefab_stage_save", "Saved prefab stage changes for the source prefab asset.",
+            Category = SkillCategory.Prefab, Operation = SkillOperation.Save,
+            Tags = new[] { "prefab", "save", "stage" },
+            Outputs = new[] { "prefabPath", "saved" },
+            RequiresInput = new[] { "prefabStage" },
+            TracksWorkflow = true)]
+        public static object PrefabStageSave()
+        {
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage == null) return new { error = $"Not currently in prefab editing mode. Open a prefab stage first with prefab_stage_open." };
+
+            string prefabPath = prefabStage.assetPath;
+            EditorSceneManager.MarkSceneDirty(prefabStage.scene);
+            bool saved = EditorSceneManager.SaveScene(prefabStage.scene);
+            if (!saved)
+            {
+                return new { error = $"Failed to save prefab stage for {prefabPath}" };
+            }
+            return new { success = true, prefabPath, saved };
+        }
+
+        [UnitySkill("prefab_stage_close", "Exited prefab stage for the source prefab asset.",
+            Category = SkillCategory.Prefab, Operation = SkillOperation.Close,
+            Tags = new[] { "prefab", "close", "stage" },
+            Outputs = new[] { "prefabPath" },
+            RequiresInput = new[] { "prefabStage", "saveBeforeClose" },
+            TracksWorkflow = true)]
+        public static object PrefabStageClose(bool saveBeforeClose = false)
+        {
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage == null) return new { error = $"Not currently in prefab editing mode." };
+
+            if (saveBeforeClose)
+            {
+                var saveResult = PrefabStageSave();
+                if (SkillResultHelper.TryGetError(saveResult, out string errorText))
+                {
+                    return saveResult;
+                }
+            }
+
+            string prefabPath = prefabStage.assetPath;
+            StageUtility.GoToMainStage();
+
+            return new { success = true, prefabPath };
+        }
     }
 }

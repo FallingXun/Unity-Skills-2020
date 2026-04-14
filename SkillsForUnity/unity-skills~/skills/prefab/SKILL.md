@@ -1,6 +1,6 @@
 ---
 name: unity-prefab
-description: "Prefab management. Use when users want to create, instantiate, apply, or unpack prefabs. Triggers: prefab, instantiate, spawn, apply, unpack, variant, 预制体, 实例化, 生成."
+description: "Prefab management. Use when users want to create, open, save, close, instantiate, apply, or unpack prefabs. Triggers: prefab, instantiate, spawn, apply, unpack, variant, 预制体, 打开, 保存, 关闭, 实例化, 生成."
 ---
 
 # Unity Prefab Skills
@@ -21,6 +21,9 @@ description: "Prefab management. Use when users want to create, instantiate, app
 - To modify components on a prefab instance in scene → use `component` module skills, then `prefab_apply`
 - To set a property directly on the prefab asset → `prefab_set_property` (this module)
 - To find all instances of a prefab → `prefab_find_instances` (this module)
+- To open prefab stage for the source prefab asset -> `prefab_stage_open`
+- To save prefab stage changes for the source prefab asset -> `prefab_stage_save`
+- To exited prefab stage for the source prefab asset -> `prefab_stage_close`
 
 ## Skills Overview
 
@@ -38,6 +41,9 @@ description: "Prefab management. Use when users want to create, instantiate, app
 - `prefab_create_variant` - Create a prefab variant
 - `prefab_find_instances` - Find all instances of a prefab in scene
 - `prefab_set_property` - Set a property on a component inside a Prefab asset (supports basic types, vectors, colors, and asset references)
+- `prefab_stage_open` - Open prefab stage for the source prefab asset
+- `prefab_stage_save` - Saved prefab stage changes for the source prefab asset
+- `prefab_stage_close` - Exited prefab stage for the source prefab asset
 
 ---
 
@@ -202,6 +208,37 @@ unity_skills.call_skill("prefab_set_property",
     gameObjectName="Body"
 )
 ```
+
+
+### prefab_stage_open
+Open prefab stage for the source prefab asset.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `prefabPath` | string | Yes | - | Prefab asset path to open |
+
+**Returns:** `{ success, openedPrefabPath, rootName, enteredPrefabStage }`
+
+
+### prefab_stage_save
+Saved prefab stage changes for the source prefab asset.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `prefabStage` | string | No* | - | Prefab stage to save |
+
+**Returns:** `{ success, prefabPath, saved }`
+
+
+### prefab_stage_close
+Exited prefab stage for the source prefab asset.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `prefabStage` | string | No* | - | Prefab stage to close |
+| `saveBeforeClose` | bool | No* | - | Save prefab stage before close |
+
+**Returns:** `{ success, prefabPath, saved }`
 
 ---
 

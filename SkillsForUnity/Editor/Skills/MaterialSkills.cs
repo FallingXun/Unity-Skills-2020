@@ -119,11 +119,21 @@ namespace UnitySkills
             {
                 // Try fallback shaders
                 var pipeline = ProjectSkills.DetectRenderPipeline();
-                var fallbackShaders = pipeline switch
+                string[] fallbackShaders = null;
+                switch(pipeline)
                 {
-                    ProjectSkills.RenderPipelineType.URP => new[] { "Universal Render Pipeline/Lit", "Universal Render Pipeline/Simple Lit", "Standard" },
-                    ProjectSkills.RenderPipelineType.HDRP => new[] { "HDRP/Lit", "Standard" },
-                    _ => new[] { "Standard", "Mobile/Diffuse", "Unlit/Color" }
+                    case ProjectSkills.RenderPipelineType.URP:
+                        {
+                            return new[] { "Universal Render Pipeline/Lit", "Universal Render Pipeline/Simple Lit", "Standard" };
+                        };
+                    case ProjectSkills.RenderPipelineType.HDRP:
+                        {
+                            return new[] { "HDRP/Lit", "Standard" };
+                        };
+                    default:
+                        {
+                            return new[] { "Standard", "Mobile/Diffuse", "Unlit/Color" };
+                        }
                 };
                 
                 foreach (var fallback in fallbackShaders)
@@ -721,7 +731,7 @@ namespace UnitySkills
                 allKeywords = material.shaderKeywords
             };
         }
-        
+
         [UnitySkill("material_set_render_queue", "Set material render queue (-1 for shader default, 2000=Geometry, 2450=AlphaTest, 3000=Transparent)",
             Category = SkillCategory.Material, Operation = SkillOperation.Modify,
             Tags = new[] { "renderQueue", "sorting", "transparency" },
@@ -735,19 +745,38 @@ namespace UnitySkills
             WorkflowManager.SnapshotObject(material);
             Undo.RecordObject(material, "Set Render Queue");
             material.renderQueue = renderQueue;
-            
+
             if (go == null) EditorUtility.SetDirty(material);
 
-            string queueName = renderQueue switch
+            string queueName = null;
+            if (renderQueue == -1)
             {
-                -1 => "ShaderDefault",
-                < 2000 => "Background",
-                < 2450 => "Geometry",
-                < 2500 => "AlphaTest",
-                < 3000 => "GeometryLast",
-                < 4000 => "Transparent",
-                _ => "Overlay"
-            };
+                queueName = "ShaderDefault";
+            }
+            else if (renderQueue < 2000)
+            {
+                queueName = "Background";
+            }
+            else if (renderQueue < 2450)
+            {
+                queueName = "Geometry";
+            }
+            else if (renderQueue < 2500)
+            {
+                queueName = "AlphaTest";
+            }
+            else if (renderQueue < 3000)
+            {
+                queueName = "GeometryLast";
+            }
+            else if (renderQueue < 4000)
+            {
+                queueName = "Transparent";
+            }
+            else
+            {
+                queueName = "Overlay";
+            }
 
             return new { 
                 success = true, 
@@ -875,9 +904,9 @@ namespace UnitySkills
                         var tex = material.GetTexture(propName);
                         textures.Add(new { name = propName, description = propDesc, value = tex != null ? tex.name : null });
                         break;
-                    case UnityEngine.Rendering.ShaderPropertyType.Int:
-                        integers.Add(new { name = propName, description = propDesc, value = material.GetInt(propName) });
-                        break;
+                    //case UnityEngine.Rendering.ShaderPropertyType.Int:
+                    //    integers.Add(new { name = propName, description = propDesc, value = material.GetInt(propName) });
+                    //    break;
                 }
             }
 

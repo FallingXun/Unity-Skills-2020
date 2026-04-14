@@ -8,6 +8,7 @@ using System.Globalization;
 
 namespace UnitySkills
 {
+#if UNITY_2022_3_OR_NEWER
     /// <summary>
     /// UI Toolkit skills - create/edit USS/UXML files and configure UIDocument in scenes.
     /// Requires Unity 2022.3+ (package minimum supported version).
@@ -1715,4 +1716,5 @@ public class {className} : MonoBehaviour
             return new { type = typeName, name = elName, classes, children };
         }
     }
+#endif
 }

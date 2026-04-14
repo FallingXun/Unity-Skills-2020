@@ -32,7 +32,7 @@ namespace UnitySkills
             try { return Convert.ToInt32(prop.GetValue(null)); }
             catch { return -1; }
         }
-
+#if UNITY_2022_3_OR_NEWER
         [UnitySkill("profiler_get_stats", "Get performance statistics (FPS, Memory, Batches)",
             Category = SkillCategory.Profiler, Operation = SkillOperation.Query,
             Tags = new[] { "profiler", "fps", "memory", "batches", "performance" },
@@ -82,6 +82,7 @@ namespace UnitySkills
                 }
             };
         }
+#endif
 
         [UnitySkill("profiler_get_memory", "Get memory usage overview (total allocated, reserved, mono heap)",
             Category = SkillCategory.Profiler, Operation = SkillOperation.Query,

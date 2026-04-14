@@ -693,7 +693,16 @@ namespace UnitySkills
                         var sv = prop.stringValue;
                         value = sv != null && sv.Length > 100 ? sv.Substring(0, 100) + "..." : sv;
                         break;
-                    case SerializedPropertyType.Enum: value = prop.enumDisplayNames != null && prop.enumValueIndex >= 0 && prop.enumValueIndex < prop.enumDisplayNames.Length ? prop.enumDisplayNames[prop.enumValueIndex] : prop.enumValueIndex; break;
+                    case SerializedPropertyType.Enum:
+                        if (prop.enumDisplayNames != null && prop.enumValueIndex >= 0 && prop.enumValueIndex < prop.enumDisplayNames.Length)
+                        {
+                            value = prop.enumDisplayNames[prop.enumValueIndex];
+                        }
+                        else
+                        {
+                            value = prop.enumValueIndex;
+                        }
+                        break;
                     case SerializedPropertyType.Vector2: value = FormatVec(prop.vector2Value); break;
                     case SerializedPropertyType.Vector3: value = FormatVec(prop.vector3Value); break;
                     case SerializedPropertyType.Vector4: value = FormatVec(prop.vector4Value); break;

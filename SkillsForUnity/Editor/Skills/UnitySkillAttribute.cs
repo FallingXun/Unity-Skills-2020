@@ -61,7 +61,10 @@ namespace UnitySkills
         Modify  = 4,
         Delete  = 8,
         Execute = 16,
-        Analyze = 32
+        Analyze = 32,
+        Open = 64,
+        Save = 128,
+        Close = 256,
     }
 
     /// <summary>

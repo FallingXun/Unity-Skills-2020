@@ -29,18 +29,18 @@ namespace UnitySkills
         public static RenderPipelineType DetectRenderPipeline()
         {
             var currentRP = GraphicsSettings.currentRenderPipeline;
-            
+
             if (currentRP == null)
                 return RenderPipelineType.BuiltIn;
-            
+
             var rpTypeName = currentRP.GetType().Name;
-            
+
             if (rpTypeName.Contains("Universal") || rpTypeName.Contains("URP"))
                 return RenderPipelineType.URP;
-            
+
             if (rpTypeName.Contains("HDRender") || rpTypeName.Contains("HDRP"))
                 return RenderPipelineType.HDRP;
-            
+
             return RenderPipelineType.Custom;
         }
 
@@ -50,14 +50,26 @@ namespace UnitySkills
         public static string GetDefaultShaderName()
         {
             var pipeline = DetectRenderPipeline();
-            
-            return pipeline switch
+
+            switch (pipeline)
             {
-                RenderPipelineType.URP => "Universal Render Pipeline/Lit",
-                RenderPipelineType.HDRP => "HDRP/Lit",
-                RenderPipelineType.BuiltIn => "Standard",
-                _ => "Standard"
-            };
+                case RenderPipelineType.URP:
+                    {
+                        return "Universal Render Pipeline/Lit";
+                    }
+                case RenderPipelineType.HDRP:
+                    {
+                        return "HDRP/Lit";
+                    }
+                case RenderPipelineType.BuiltIn:
+                    {
+                        return "Standard";
+                    }
+                default:
+                    {
+                        return "Standard";
+                    }
+            }
         }
 
         /// <summary>
@@ -66,14 +78,26 @@ namespace UnitySkills
         public static string GetUnlitShaderName()
         {
             var pipeline = DetectRenderPipeline();
-            
-            return pipeline switch
+
+            switch (pipeline)
             {
-                RenderPipelineType.URP => "Universal Render Pipeline/Unlit",
-                RenderPipelineType.HDRP => "HDRP/Unlit",
-                RenderPipelineType.BuiltIn => "Unlit/Color",
-                _ => "Unlit/Color"
-            };
+                case RenderPipelineType.URP:
+                    {
+                        return "Universal Render Pipeline/Unlit";
+                    }
+                case RenderPipelineType.HDRP:
+                    {
+                        return "HDRP/Unlit";
+                    }
+                case RenderPipelineType.BuiltIn:
+                    {
+                        return "Unlit/Color";
+                    }
+                default:
+                    {
+                        return "Unlit/Color";
+                    }
+            }
         }
 
         /// <summary>
@@ -82,14 +106,26 @@ namespace UnitySkills
         public static string GetColorPropertyName()
         {
             var pipeline = DetectRenderPipeline();
-            
-            return pipeline switch
+
+            switch (pipeline)
             {
-                RenderPipelineType.URP => "_BaseColor",
-                RenderPipelineType.HDRP => "_BaseColor",
-                RenderPipelineType.BuiltIn => "_Color",
-                _ => "_Color"
-            };
+                case RenderPipelineType.URP:
+                    {
+                        return "_BaseColor";
+                    }
+                case RenderPipelineType.HDRP:
+                    {
+                        return "_BaseColor";
+                    }
+                case RenderPipelineType.BuiltIn:
+                    {
+                        return "_Color";
+                    }
+                default:
+                    {
+                        return "_Color";
+                    }
+            }
         }
 
         /// <summary>
@@ -98,14 +134,26 @@ namespace UnitySkills
         public static string GetMainTexturePropertyName()
         {
             var pipeline = DetectRenderPipeline();
-            
-            return pipeline switch
+
+            switch (pipeline)
             {
-                RenderPipelineType.URP => "_BaseMap",
-                RenderPipelineType.HDRP => "_BaseColorMap",
-                RenderPipelineType.BuiltIn => "_MainTex",
-                _ => "_MainTex"
-            };
+                case RenderPipelineType.URP:
+                    {
+                        return "_BaseMap";
+                    }
+                case RenderPipelineType.HDRP:
+                    {
+                        return "_BaseColorMap";
+                    }
+                case RenderPipelineType.BuiltIn:
+                    {
+                        return "_MainTex";
+                    }
+                default:
+                    {
+                        return "_MainTex";
+                    }
+            }
         }
 
         [UnitySkill("project_get_info", "Get project information including render pipeline, Unity version, and settings",
@@ -117,7 +165,7 @@ namespace UnitySkills
         {
             var pipeline = DetectRenderPipeline();
             var currentRP = GraphicsSettings.currentRenderPipeline;
-            
+
             return new
             {
                 success = true,
@@ -152,36 +200,49 @@ namespace UnitySkills
         {
             var pipeline = DetectRenderPipeline();
             var currentRP = GraphicsSettings.currentRenderPipeline;
-            
+
             var availableShaders = new List<object>();
-            
+
             // List common shaders for the detected pipeline
-            string[] shadersToCheck = pipeline switch
+            string[] shadersToCheck = null;
+            switch (pipeline)
             {
-                RenderPipelineType.URP => new[] 
-                {
-                    "Universal Render Pipeline/Lit",
-                    "Universal Render Pipeline/Simple Lit",
-                    "Universal Render Pipeline/Unlit",
-                    "Universal Render Pipeline/Particles/Lit",
-                    "Universal Render Pipeline/Particles/Unlit"
-                },
-                RenderPipelineType.HDRP => new[]
-                {
-                    "HDRP/Lit",
-                    "HDRP/Unlit",
-                    "HDRP/LitTessellation"
-                },
-                _ => new[]
-                {
-                    "Standard",
-                    "Standard (Specular setup)",
-                    "Unlit/Color",
-                    "Unlit/Texture",
-                    "Mobile/Diffuse"
-                }
+                case RenderPipelineType.URP:
+                    {
+                        shadersToCheck = new[]
+                            {
+                                "Universal Render Pipeline/Lit",
+                                "Universal Render Pipeline/Simple Lit",
+                                "Universal Render Pipeline/Unlit",
+                                "Universal Render Pipeline/Particles/Lit",
+                                "Universal Render Pipeline/Particles/Unlit"
+                            };
+                        break;
+                    }
+                case RenderPipelineType.HDRP:
+                    {
+                        shadersToCheck = new[]
+                            {
+                                "HDRP/Lit",
+                                "HDRP/Unlit",
+                                "HDRP/LitTessellation"
+                            };
+                        break;
+                    }
+                default:
+                    {
+                        shadersToCheck = new[]
+                            {
+                                "Standard",
+                                "Standard (Specular setup)",
+                                "Unlit/Color",
+                                "Unlit/Texture",
+                                "Mobile/Diffuse"
+                            };
+                        break;
+                    }
             };
-            
+
             foreach (var shaderName in shadersToCheck)
             {
                 var shader = Shader.Find(shaderName);
@@ -191,7 +252,7 @@ namespace UnitySkills
                     available = shader != null
                 });
             }
-            
+
             return new
             {
                 success = true,
@@ -213,7 +274,7 @@ namespace UnitySkills
         public static object ProjectListShaders(string filter = null, int limit = 50)
         {
             var shaderNames = new List<string>();
-            
+
             // Get all shader assets
             var guids = AssetDatabase.FindAssets("t:Shader");
             foreach (var guid in guids)
@@ -228,7 +289,7 @@ namespace UnitySkills
                     }
                 }
             }
-            
+
             // Also try to find common built-in shaders
             var builtInShaders = new[]
             {
@@ -242,7 +303,7 @@ namespace UnitySkills
                 "Universal Render Pipeline/Unlit",
                 "HDRP/Lit", "HDRP/Unlit"
             };
-            
+
             foreach (var shaderName in builtInShaders)
             {
                 var shader = Shader.Find(shaderName);
@@ -254,9 +315,9 @@ namespace UnitySkills
                     }
                 }
             }
-            
+
             var sortedShaders = shaderNames.Distinct().OrderBy(s => s).Take(limit).ToList();
-            
+
             return new
             {
                 success = true,

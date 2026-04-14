@@ -367,7 +367,7 @@ This file declares available skills for AI agents like Codex.
         {
             foreach (var directory in Directory.GetDirectories(sourceRoot, "*", SearchOption.AllDirectories))
             {
-                string relativePath = Path.GetRelativePath(sourceRoot, directory);
+                string relativePath = directory.Replace("\\","/").Replace(sourceRoot.Replace("\\","/"),"");
                 if (ShouldSkipTemplatePath(relativePath))
                     continue;
 
@@ -376,7 +376,7 @@ This file declares available skills for AI agents like Codex.
 
             foreach (var file in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
             {
-                string relativePath = Path.GetRelativePath(sourceRoot, file);
+                string relativePath = file.Replace("\\","/").Replace(sourceRoot.Replace("\\","/"),"");
                 if (ShouldSkipTemplatePath(relativePath))
                     continue;
 

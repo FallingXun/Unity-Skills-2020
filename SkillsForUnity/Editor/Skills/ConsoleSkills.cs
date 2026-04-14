@@ -71,7 +71,7 @@ namespace UnitySkills
                     if (!string.IsNullOrEmpty(filter))
                         results = results.Where(l => l.message.Contains(filter));
 
-                    var captured = results.TakeLast(limit).Select(l => new
+                    var captured = results.Select(l => new
                     {
                         type = l.type.ToString(),
                         message = l.message,

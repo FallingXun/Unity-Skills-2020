@@ -13,6 +13,7 @@ namespace UnitySkills
     /// </summary>
     public static class EventSkills
     {
+#if UNITY_2022_3_OR_NEWER
         [UnitySkill("event_get_listeners", "Get persistent listeners of a UnityEvent",
             Category = SkillCategory.Event, Operation = SkillOperation.Query,
             Tags = new[] { "event", "listeners", "unityevent", "inspect" },
@@ -74,7 +75,7 @@ namespace UnitySkills
                 listeners
             };
         }
-
+#endif
         [UnitySkill("event_add_listener", "Add a persistent listener to a UnityEvent (Editor time). Supported args: void, int, float, string, bool, Object.", TracksWorkflow = true,
             Category = SkillCategory.Event, Operation = SkillOperation.Modify,
             Tags = new[] { "event", "listener", "add", "callback" },
