@@ -55,18 +55,19 @@ namespace UnitySkills
                 var alignmentOptionsType = Type.GetType("TMPro.TextAlignmentOptions, Unity.TextMeshPro");
                 if (alignmentOptionsType != null)
                 {
-                    object tmpAlignment = alignment switch
+                    object tmpAlignment = null;
+                    switch(alignment)
                     {
-                        TextAnchor.UpperLeft => Enum.Parse(alignmentOptionsType, "TopLeft"),
-                        TextAnchor.UpperCenter => Enum.Parse(alignmentOptionsType, "Top"),
-                        TextAnchor.UpperRight => Enum.Parse(alignmentOptionsType, "TopRight"),
-                        TextAnchor.MiddleLeft => Enum.Parse(alignmentOptionsType, "Left"),
-                        TextAnchor.MiddleCenter => Enum.Parse(alignmentOptionsType, "Center"),
-                        TextAnchor.MiddleRight => Enum.Parse(alignmentOptionsType, "Right"),
-                        TextAnchor.LowerLeft => Enum.Parse(alignmentOptionsType, "BottomLeft"),
-                        TextAnchor.LowerCenter => Enum.Parse(alignmentOptionsType, "Bottom"),
-                        TextAnchor.LowerRight => Enum.Parse(alignmentOptionsType, "BottomRight"),
-                        _ => Enum.Parse(alignmentOptionsType, "Center")
+                        case TextAnchor.UpperLeft: tmpAlignment = Enum.Parse(alignmentOptionsType, "TopLeft"); break;
+                        case TextAnchor.UpperCenter: tmpAlignment = Enum.Parse(alignmentOptionsType, "Top"); break;
+                        case TextAnchor.UpperRight: tmpAlignment = Enum.Parse(alignmentOptionsType, "TopRight"); break;
+                        case TextAnchor.MiddleLeft: tmpAlignment = Enum.Parse(alignmentOptionsType, "Left"); break;
+                        case TextAnchor.MiddleCenter: tmpAlignment = Enum.Parse(alignmentOptionsType, "Center"); break;
+                        case TextAnchor.MiddleRight: tmpAlignment = Enum.Parse(alignmentOptionsType, "Right"); break;
+                        case TextAnchor.LowerLeft: tmpAlignment = Enum.Parse(alignmentOptionsType, "BottomLeft"); break;
+                        case TextAnchor.LowerCenter: tmpAlignment = Enum.Parse(alignmentOptionsType, "Bottom"); break;
+                        case TextAnchor.LowerRight: tmpAlignment = Enum.Parse(alignmentOptionsType, "BottomRight"); break;
+                        default: tmpAlignment = Enum.Parse(alignmentOptionsType, "Center"); break;
                     };
                     _tmpTextType.GetProperty("alignment")?.SetValue(tmp, tmpAlignment);
                 }
