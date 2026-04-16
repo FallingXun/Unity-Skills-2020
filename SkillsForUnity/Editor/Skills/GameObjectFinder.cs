@@ -3,6 +3,12 @@ using UnityEditor;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+#if UNITY_2022_3_OR_NEWER
+using UnityEditor.SceneManagement;
+#else
+using UnityEditor.SceneManagement;
+using UnityEditor.Experimental.SceneManagement;
+#endif
 
 namespace UnitySkills
 {
@@ -329,34 +335,56 @@ namespace UnitySkills
             if (parts.Length == 0)
                 return null;
 
-            foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount)
-                .Select(SceneManager.GetSceneAt)
-                .Where(scene => scene.IsValid() && scene.isLoaded))
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage != null)
             {
-                var rootObjects = scene.GetRootGameObjects();
-                int partIndex = 0;
-
-                if (parts.Length > 1 && scene.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase))
-                    partIndex = 1;
-
-                if (partIndex >= parts.Length)
-                    continue;
-
-                var current = rootObjects.FirstOrDefault(go =>
-                    go.name.Equals(parts[partIndex], System.StringComparison.OrdinalIgnoreCase));
-                if (current == null)
-                    continue;
-
-                partIndex++;
-                while (partIndex < parts.Length && current != null)
+                var current = prefabStage.openedFromInstanceRoot;
+                for (int i = 0; i < parts.Length; i++)
                 {
-                    current = FindDirectChild(current, parts[partIndex]);
-                    partIndex++;
+                    if(current != null)
+                    {
+                        current = FindDirectChild(current, parts[i]);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
-
                 if (current != null)
                     return current;
             }
+            else
+            {
+                foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount)
+                      .Select(SceneManager.GetSceneAt)
+                      .Where(scene => scene.IsValid() && scene.isLoaded))
+                {
+                    var rootObjects = scene.GetRootGameObjects();
+                    int partIndex = 0;
+
+                    if (parts.Length > 1 && scene.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase))
+                        partIndex = 1;
+
+                    if (partIndex >= parts.Length)
+                        continue;
+
+                    var current = rootObjects.FirstOrDefault(go =>
+                        go.name.Equals(parts[partIndex], System.StringComparison.OrdinalIgnoreCase));
+                    if (current == null)
+                        continue;
+
+                    partIndex++;
+                    while (partIndex < parts.Length && current != null)
+                    {
+                        current = FindDirectChild(current, parts[partIndex]);
+                        partIndex++;
+                    }
+
+                    if (current != null)
+                        return current;
+                }
+            }
+
 
             return null;
         }
@@ -379,13 +407,42 @@ namespace UnitySkills
             return null;
         }
 
+        private static GameObject FindGameObject(GameObject go, string name)
+        {
+            if (go == null || string.IsNullOrEmpty(name))
+                return null;
+
+            if (go.name.Equals(name, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return go;
+            }
+
+            foreach (Transform child in go.transform)
+            {
+                var target = FindGameObject(child.gameObject, name);
+                if(target != null)
+                {
+                    return target;
+                }
+            }
+            return null;
+        }
+
         /// <summary>
         /// Find GameObject by name with case-insensitive matching
         /// </summary>
         public static GameObject FindByNameCaseInsensitive(string name)
         {
-            return GetAllSceneObjects()
-                .FirstOrDefault(go => go.name.Equals(name, System.StringComparison.OrdinalIgnoreCase));
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage != null)
+            {
+                return FindGameObject(prefabStage.openedFromInstanceRoot, name);
+            }
+            else
+            {
+                return GetAllSceneObjects()
+                    .FirstOrDefault(go => go.name.Equals(name, System.StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         /// <summary>
@@ -393,16 +450,24 @@ namespace UnitySkills
         /// </summary>
         public static GameObject FindByNameContains(string name)
         {
-            // Prefer exact word match first
-            var exactWord = GetAllSceneObjects()
-                .FirstOrDefault(go => go.name.Split(' ', '_', '-').Any(
-                    word => word.Equals(name, System.StringComparison.OrdinalIgnoreCase)));
-            if (exactWord != null)
-                return exactWord;
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage != null)
+            {
+                return FindGameObject(prefabStage.openedFromInstanceRoot, name);
+            }
+            else
+            {
+                // Prefer exact word match first
+                var exactWord = GetAllSceneObjects()
+                    .FirstOrDefault(go => go.name.Split(' ', '_', '-').Any(
+                        word => word.Equals(name, System.StringComparison.OrdinalIgnoreCase)));
+                if (exactWord != null)
+                    return exactWord;
 
-            // Then try contains
-            return GetAllSceneObjects()
-                .FirstOrDefault(go => go.name.IndexOf(name, System.StringComparison.OrdinalIgnoreCase) >= 0);
+                // Then try contains
+                return GetAllSceneObjects()
+                    .FirstOrDefault(go => go.name.IndexOf(name, System.StringComparison.OrdinalIgnoreCase) >= 0);
+            }
         }
 
         /// <summary>

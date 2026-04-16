@@ -18,7 +18,7 @@ description: "GameObject component management. Use when users want to add, remov
 - Custom scripts need exact class name; if namespaced, use `Namespace.ClassName`
 
 **Routing**:
-- To create a C# component script → use `script` module's `script_create` first, then `component_add`
+- To create a C# component script → use `script` module\"s `script_create` first, then `component_add`
 - To set multiple properties at once → use `component_set_property_batch`
 - To enable/disable a component → `component_set_enabled` (not `component_set_property`)
 
@@ -110,6 +110,20 @@ call_skill("component_set_property", name="Obj", componentType="Light", property
 # Enum (use string name)
 call_skill("component_set_property", name="Obj", componentType="Rigidbody", propertyName="interpolation",
            value="Interpolate")
+
+# Custom Serializable Class(JSON object with fieldName1:value1, fieldName2: value2, ...)
+## Unity Object can use `project asset path` or `hierarchy path` or `name`
+call_skill("component_set_property", name="Obj", componentType="UIStorage", propertyName="item",
+           value={"key": "BtnClose", "source": "BtnClose", "typeName": "UnityEngine.UI.Button"})
+
+# List/Array(JSON array object with { json object1 }, { json object2 }, ...)
+# Before set list/array property, should call get property to get current list/array value, then regenerate/combine with new list/array data
+call_skill("component_set_property", name="Obj", componentType="UIStorage", propertyName="items",
+           value=[
+                {"key": "BtnClose", "source": "BtnClose", "typeName": "UnityEngine.UI.Button"}, 
+                {"key": "SkillListItem", "source": "Assets/Prefab/SkillListItem", "typeName": "UnityEngine.Object"},
+                ...
+           ])
 ```
 
 **Returns**: `{success, gameObject, componentType, property, oldValue, newValue}`
@@ -162,11 +176,17 @@ Set properties on multiple objects.
 ```python
 unity_skills.call_skill("component_set_property_batch", items=[
     {"name": "Enemy1", "componentType": "Rigidbody", "propertyName": "mass", "value": 2.0},
-    {"name": "Enemy2", "componentType": "Rigidbody", "propertyName": "mass", "value": 2.0}
+    {"name": "Enemy2", "componentType": "Rigidbody", "propertyName": "mass", "value": 2.0},
+    {"name": "Obj", "componentType": "UIStorage", "propertyName": "items",
+           "value": "[ \
+                {\"key\": \"BtnClose\", \"source\": \"BtnClose\", \"typeName\": \"UnityEngine.UI.Button\"}, \
+                {\"key\": \"SkillListItem\", \"source\": \"Assets/Prefab/SkillListItem\", \"typeName\": \"UnityEngine.Object\"},    \
+                ... \
+           ]"}
 ])
 ```
 
----
+---unity_skills
 
 ## Common Component Types
 

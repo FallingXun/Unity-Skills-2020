@@ -237,7 +237,7 @@ Exited prefab stage for the source prefab asset.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `prefabStage` | string | No* | - | Prefab stage to close |
-| `saveBeforeClose` | bool | No* | - | Save prefab stage before close |
+| `saveBeforeClose` | string | No* | - | Save prefab stage before close.Use "True" or "False" |
 
 **Returns:** `{ success, prefabPath, saved }`
 

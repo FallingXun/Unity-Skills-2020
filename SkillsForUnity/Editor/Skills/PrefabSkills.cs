@@ -607,26 +607,26 @@ namespace UnitySkills
             if (prefabStage == null) return new { error = $"Not currently in prefab editing mode. Open a prefab stage first with prefab_stage_open." };
 
             string prefabPath = prefabStage.assetPath;
-            EditorSceneManager.MarkSceneDirty(prefabStage.scene);
-            bool saved = EditorSceneManager.SaveScene(prefabStage.scene);
+            bool saved;
+            PrefabUtility.SaveAsPrefabAsset(prefabStage.prefabContentsRoot, prefabPath, out saved);
             if (!saved)
             {
-                return new { error = $"Failed to save prefab stage for {prefabPath}" };
+                return new { error = $"Failed to save prefab stage for '{prefabPath}'. The file may be read-only or the disk may be full." };
             }
-            return new { success = true, prefabPath, saved };
+            prefabStage.ClearDirtiness();
+            return new { success = true, prefabPath, saved = saved };
         }
 
         [UnitySkill("prefab_stage_close", "Exited prefab stage for the source prefab asset.",
             Category = SkillCategory.Prefab, Operation = SkillOperation.Close,
             Tags = new[] { "prefab", "close", "stage" },
             Outputs = new[] { "prefabPath" },
-            RequiresInput = new[] { "prefabStage", "saveBeforeClose" },
+            RequiresInput = new[] { "saveBeforeClose" },
             TracksWorkflow = true)]
         public static object PrefabStageClose(bool saveBeforeClose = false)
         {
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage == null) return new { error = $"Not currently in prefab editing mode." };
-
             if (saveBeforeClose)
             {
                 var saveResult = PrefabStageSave();
@@ -639,7 +639,7 @@ namespace UnitySkills
             string prefabPath = prefabStage.assetPath;
             StageUtility.GoToMainStage();
 
-            return new { success = true, prefabPath };
+            return new { success = true, prefabPath, saved = saveBeforeClose };
         }
     }
 }

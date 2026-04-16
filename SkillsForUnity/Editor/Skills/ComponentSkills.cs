@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Globalization;
+using Newtonsoft.Json;
 
 namespace UnitySkills
 {
@@ -21,7 +22,7 @@ namespace UnitySkills
         // NOTE: Not thread-safe - only access from Unity main thread (guaranteed by SkillsHttpServer Producer-Consumer pattern)
         private static readonly Dictionary<string, (PropertyInfo prop, FieldInfo field)> _memberCache =
             new Dictionary<string, (PropertyInfo, FieldInfo)>();
-        
+
         // Common third-party namespaces to search
         private static readonly string[] ExtendedNamespaces = new[]
         {
@@ -69,7 +70,8 @@ namespace UnitySkills
 
             var type = FindComponentType(componentType);
             if (type == null)
-                return new { 
+                return new
+                {
                     error = $"Component type not found: {componentType}",
                     hint = "Try using full type name like 'CinemachineVirtualCamera' or 'Unity.Cinemachine.CinemachineCamera'",
                     availableTypes = GetSimilarTypes(componentType)
@@ -77,7 +79,8 @@ namespace UnitySkills
 
             // Check if component already exists (for single-instance components)
             if (go.GetComponent(type) != null && !AllowMultiple(type))
-                return new { 
+                return new
+                {
                     warning = $"Component {type.Name} already exists on {go.name}",
                     gameObject = go.name,
                     instanceId = go.GetInstanceID()
@@ -93,7 +96,8 @@ namespace UnitySkills
 
             EditorUtility.SetDirty(go);
 
-            return new {
+            return new
+            {
                 success = true,
                 gameObject = go.name,
                 instanceId = go.GetInstanceID(),
@@ -174,7 +178,8 @@ namespace UnitySkills
             // Check if it's a required component
             var requiredBy = GetRequiredByComponents(go, type);
             if (requiredBy.Any())
-                return new {
+                return new
+                {
                     error = $"Cannot remove {componentType} - required by: {string.Join(", ", requiredBy)}",
                     hint = "Remove dependent components first"
                 };
@@ -243,31 +248,33 @@ namespace UnitySkills
 
             var components = go.GetComponents<Component>()
                 .Where(c => c != null)
-                .Select(c => {
+                .Select(c =>
+                {
                     var info = new Dictionary<string, object>
                     {
                         { "type", c.GetType().Name },
                         { "fullType", c.GetType().FullName },
                         { "enabled", (c as Behaviour)?.enabled ?? true }
                     };
-                    
+
                     if (includeProperties)
                     {
                         var props = GetComponentPropertiesSummary(c);
                         if (props.Any())
                             info["keyProperties"] = props;
                     }
-                    
+
                     return info;
                 })
                 .ToArray();
 
-            return new { 
-                gameObject = go.name, 
-                instanceId = go.GetInstanceID(), 
-                path = GameObjectFinder.GetPath(go), 
+            return new
+            {
+                gameObject = go.name,
+                instanceId = go.GetInstanceID(),
+                path = GameObjectFinder.GetPath(go),
                 componentCount = components.Length,
-                components 
+                components
             };
         }
 
@@ -292,7 +299,7 @@ namespace UnitySkills
             var type = FindComponentType(componentType);
             if (type == null)
                 return new { error = $"Component type not found: {componentType}" };
-                
+
             var comp = go.GetComponent(type);
             if (comp == null)
                 return new { error = $"Component not found: {componentType}" };
@@ -301,7 +308,8 @@ namespace UnitySkills
             var (prop, field) = FindMember(type, propertyName);
 
             if (prop == null && field == null)
-                return new {
+                return new
+                {
                     error = $"Property/field not found: {propertyName}",
                     availableProperties = GetAvailableProperties(type)
                 };
@@ -341,19 +349,21 @@ namespace UnitySkills
                     return new { error = $"Property {propertyName} is read-only" };
 
                 EditorUtility.SetDirty(comp);
-                
-                return new { 
-                    success = true, 
-                    gameObject = go.name, 
+
+                return new
+                {
+                    success = true,
+                    gameObject = go.name,
                     component = componentType,
-                    property = propertyName, 
+                    property = propertyName,
                     valueSet = converted?.ToString() ?? "null",
                     valueType = targetType.Name
                 };
             }
             catch (System.Exception ex)
             {
-                return new { 
+                return new
+                {
                     error = ex.Message,
                 };
             }
@@ -425,6 +435,7 @@ namespace UnitySkills
             }, item => item.name ?? item.path);
         }
 
+
         private class BatchSetPropertyItem
         {
             public string name { get; set; }
@@ -437,6 +448,7 @@ namespace UnitySkills
             public string referenceName { get; set; }
             public string assetPath { get; set; }
         }
+
 
         [UnitySkill("component_get_properties", "Get all properties of a component (supports name/instanceId/path)",
             Category = SkillCategory.Component, Operation = SkillOperation.Query,
@@ -454,7 +466,7 @@ namespace UnitySkills
             var type = FindComponentType(componentType);
             if (type == null)
                 return new { error = $"Component type not found: {componentType}" };
-                
+
             var comp = go.GetComponent(type);
             if (comp == null)
                 return new { error = $"Component not found: {componentType}" };
@@ -467,16 +479,17 @@ namespace UnitySkills
                 .Where(p => p.CanRead && !p.GetIndexParameters().Any())
                 .Select(p =>
                 {
-                    try 
-                    { 
+                    try
+                    {
                         var val = p.GetValue(comp);
-                        return new { 
-                            name = p.Name, 
-                            type = p.PropertyType.Name, 
+                        return new
+                        {
+                            name = p.Name,
+                            type = p.PropertyType.Name,
                             fullType = p.PropertyType.FullName,
                             value = FormatValue(val),
                             canWrite = p.CanWrite
-                        }; 
+                        };
                     }
                     catch { return new { name = p.Name, type = p.PropertyType.Name, fullType = p.PropertyType.FullName, value = "(error reading)", canWrite = p.CanWrite }; }
                 })
@@ -485,24 +498,26 @@ namespace UnitySkills
             var fields = type.GetFields(bindingFlags)
                 .Select(f =>
                 {
-                    try 
-                    { 
+                    try
+                    {
                         var val = f.GetValue(comp);
-                        return new { 
-                            name = f.Name, 
-                            type = f.FieldType.Name, 
+                        return new
+                        {
+                            name = f.Name,
+                            type = f.FieldType.Name,
                             fullType = f.FieldType.FullName,
                             value = FormatValue(val),
                             isSerializable = f.IsPublic || f.GetCustomAttribute<SerializeField>() != null
-                        }; 
+                        };
                     }
                     catch { return new { name = f.Name, type = f.FieldType.Name, fullType = f.FieldType.FullName, value = "(error reading)", isSerializable = false }; }
                 })
                 .ToArray();
 
-            return new { 
-                gameObject = go.name, 
-                component = componentType, 
+            return new
+            {
+                gameObject = go.name,
+                component = componentType,
                 fullTypeName = type.FullName,
                 properties = props,
                 fields = fields
@@ -510,7 +525,7 @@ namespace UnitySkills
         }
 
         #region Type Finding (Enhanced for Third-Party)
-        
+
         /// <summary>
         /// Find component type with extensive namespace search.
         /// Supports Cinemachine, TextMeshPro, and other common plugins.
@@ -518,13 +533,13 @@ namespace UnitySkills
         public static System.Type FindComponentType(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
-            
+
             // Check cache first
             if (_typeCache.TryGetValue(name, out var cached))
                 return cached;
 
             System.Type result = null;
-            
+
             // 1. Try exact type name (might be full namespace)
             result = System.Type.GetType(name);
             if (result != null && typeof(Component).IsAssignableFrom(result))
@@ -536,7 +551,7 @@ namespace UnitySkills
 
             // 2. Extract simple name
             var simpleName = name.Contains(".") ? name.Substring(name.LastIndexOf('.') + 1) : name;
-            
+
             // 3. Try common namespaces
             foreach (var ns in ExtendedNamespaces)
             {
@@ -548,13 +563,13 @@ namespace UnitySkills
                     return result;
                 }
             }
-            
+
             // 4. Search all loaded assemblies by simple name (slowest but most comprehensive)
             result = System.AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => { try { return a.GetTypes(); } catch { return new System.Type[0]; } })
-                .FirstOrDefault(t => 
-                    (t.Name.Equals(simpleName, System.StringComparison.OrdinalIgnoreCase) || 
-                     t.FullName == name) && 
+                .FirstOrDefault(t =>
+                    (t.Name.Equals(simpleName, System.StringComparison.OrdinalIgnoreCase) ||
+                     t.FullName == name) &&
                     typeof(Component).IsAssignableFrom(t));
 
             if (result != null)
@@ -562,7 +577,7 @@ namespace UnitySkills
                 if (_typeCache.Count > 500) _typeCache.Clear();
                 _typeCache[name] = result;
             }
-                
+
             return result;
         }
 
@@ -596,10 +611,10 @@ namespace UnitySkills
         private static string[] GetSimilarTypes(string searchTerm)
         {
             var simpleName = searchTerm.Contains(".") ? searchTerm.Substring(searchTerm.LastIndexOf('.') + 1) : searchTerm;
-            
+
             return System.AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => { try { return a.GetTypes(); } catch { return new System.Type[0]; } })
-                .Where(t => typeof(Component).IsAssignableFrom(t) && 
+                .Where(t => typeof(Component).IsAssignableFrom(t) &&
                            t.Name.IndexOf(simpleName, System.StringComparison.OrdinalIgnoreCase) >= 0)
                 .Take(10)
                 .Select(t => t.FullName)
@@ -626,10 +641,35 @@ namespace UnitySkills
             }
             catch { return new string[0]; }
         }
-        
+
         #endregion
 
         #region Value Conversion (Enhanced)
+        private static bool IsList(System.Type type)
+        {
+            if (type.IsArray)
+            {
+                return true;
+            }
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private static System.Type GetElementType(System.Type type)
+        {
+            if (type.IsArray)
+            {
+                return type.GetElementType();
+            }
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return type.GetGenericArguments()[0];
+            }
+            return null;
+        }
 
         /// <summary>
         /// Convert string value to target type with extensive support.
@@ -639,6 +679,12 @@ namespace UnitySkills
             if (value == null || value.Equals("null", System.StringComparison.OrdinalIgnoreCase))
                 return targetType.IsValueType ? System.Activator.CreateInstance(targetType) : null;
 
+
+            if (IsList(targetType))
+            {
+                return ParseList(value, targetType);
+            }
+
             // Primitives
             if (targetType == typeof(string)) return value;
             if (targetType == typeof(int)) return int.Parse(value);
@@ -646,14 +692,14 @@ namespace UnitySkills
             if (targetType == typeof(double)) return double.Parse(value, CultureInfo.InvariantCulture);
             if (targetType == typeof(bool)) return ParseBool(value);
             if (targetType == typeof(long)) return long.Parse(value);
-            
+
             // Unity Vector types
             if (targetType == typeof(Vector2)) return ParseVector2(value);
             if (targetType == typeof(Vector3)) return ParseVector3(value);
             if (targetType == typeof(Vector4)) return ParseVector4(value);
             if (targetType == typeof(Vector2Int)) return ParseVector2Int(value);
             if (targetType == typeof(Vector3Int)) return ParseVector3Int(value);
-            
+
             // Unity other types
             if (targetType == typeof(Quaternion)) return ParseQuaternion(value);
             if (targetType == typeof(Color)) return ParseColor(value);
@@ -661,7 +707,7 @@ namespace UnitySkills
             if (targetType == typeof(Rect)) return ParseRect(value);
             if (targetType == typeof(Bounds)) return ParseBounds(value);
             if (targetType == typeof(LayerMask)) return ParseLayerMask(value);
-            
+
             // Enums
             if (targetType.IsEnum)
                 return System.Enum.Parse(targetType, value, true);
@@ -669,6 +715,11 @@ namespace UnitySkills
             // AnimationCurve (simple format)
             if (targetType == typeof(AnimationCurve))
                 return ParseAnimationCurve(value);
+
+            if (targetType.IsSerializable)
+            {
+                return ParseSerialize(value, targetType);
+            }
 
             // Fallback
             return System.Convert.ChangeType(value, targetType);
@@ -729,7 +780,7 @@ namespace UnitySkills
                 if (ColorUtility.TryParseHtmlString(value, out var color))
                     return color;
             }
-            
+
             // Support named colors
             var namedColor = GetNamedColor(value);
             if (namedColor.HasValue)
@@ -813,10 +864,10 @@ namespace UnitySkills
             // Remove parentheses and brackets
             value = value.Trim('(', ')', '[', ']', '{', '}');
             var parts = value.Split(new[] { ',', ' ', ';' }, System.StringSplitOptions.RemoveEmptyEntries);
-            
+
             if (expectedCount > 0 && parts.Length != expectedCount)
                 throw new System.ArgumentException($"Expected {expectedCount} values, got {parts.Length}");
-            
+
             return parts.Select(p => float.Parse(p.Trim(), CultureInfo.InvariantCulture)).ToArray();
         }
 
@@ -824,13 +875,100 @@ namespace UnitySkills
         {
             value = value.Trim('(', ')', '[', ']', '{', '}');
             var parts = value.Split(new[] { ',', ' ', ';' }, System.StringSplitOptions.RemoveEmptyEntries);
-            
+
             if (expectedCount > 0 && parts.Length != expectedCount)
                 throw new System.ArgumentException($"Expected {expectedCount} values, got {parts.Length}");
-            
+
             return parts.Select(p => int.Parse(p.Trim())).ToArray();
         }
 
+        private static object ParseSerialize(string value, System.Type type)
+        {
+            var serializableObj = System.Activator.CreateInstance(type);
+            var json = JsonConvert.DeserializeObject<Dictionary<string, object>>(value);
+            var members = type.GetMembers();
+            if (members != null)
+            {
+                foreach (var member in members)
+                {
+                    System.Type targetType = null;
+                    if (member.MemberType == MemberTypes.Field)
+                    {
+                        targetType = (member as FieldInfo).FieldType;
+                    }
+                    else if (member.MemberType == MemberTypes.Property)
+                    {
+                        targetType = (member as PropertyInfo).PropertyType;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                    if (!json.ContainsKey(member.Name))
+                    {
+                        continue;
+                    }
+                    object memberValue = null;
+                    var itemValue = json[member.Name]?.ToString();
+                    if (targetType == typeof(UnityEngine.Object))
+                    {
+                        if (!string.IsNullOrEmpty(itemValue))
+                        {
+                            memberValue = ResolveAssetReference(targetType, itemValue);
+                            if (memberValue == null)
+                            {
+                                memberValue = ResolveReference(targetType, itemValue, itemValue);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        memberValue = ConvertValue(itemValue, targetType);
+                    }
+                    if (member.MemberType == MemberTypes.Field)
+                    {
+                        (member as FieldInfo).SetValue(serializableObj, memberValue);
+                    }
+                    else if (member.MemberType == MemberTypes.Property)
+                    {
+                        (member as PropertyInfo).SetValue(serializableObj, memberValue);
+                    }
+                }
+            }
+            return serializableObj;
+        }
+
+        private static object ParseList(string value, System.Type type)
+        {
+            var json = JsonConvert.DeserializeObject<List<object>>(value);
+            List<object> objs = new List<object>();
+            var elementType = GetElementType(type);
+            foreach (var item in json)
+            {
+                var itemValue = ConvertValue(item.ToString(), elementType);
+                objs.Add(itemValue);
+            }
+            if (type.IsArray)
+            {
+                var array = System.Array.CreateInstance(elementType, objs.Count);
+                for (int i = 0; i < objs.Count; i++)
+                {
+                    array.SetValue(objs[i], i);
+                }
+                return array;
+            }
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                var listType = typeof(List<>).MakeGenericType(elementType);
+                var list = System.Activator.CreateInstance(listType) as System.Collections.IList;
+                for (int i = 0; i < objs.Count; i++)
+                {
+                    list.Add(objs[i]);
+                }
+                return list;
+            }
+            return null;
+        }
         #endregion
 
         #region Reference Resolution
@@ -850,12 +988,12 @@ namespace UnitySkills
             // Return appropriate type
             if (targetType == typeof(Transform))
                 return targetGo.transform;
-            if (targetType == typeof(GameObject))
-                return targetGo;
+            //if (targetType == typeof(GameObject))
+            //    return targetGo;
             if (typeof(Component).IsAssignableFrom(targetType))
                 return targetGo.GetComponent(targetType);
 
-            return null;
+            return targetGo;
         }
 
         /// <summary>
@@ -883,12 +1021,69 @@ namespace UnitySkills
         private static string FormatValue(object val)
         {
             if (val == null) return "null";
+            if (IsList(val.GetType()))
+            {
+                List<string> list = new List<string>();
+                foreach (var item in (System.Collections.IEnumerable)val)
+                {
+                    var itemValue = FormatValue(item);
+                    list.Add(itemValue);
+                }
+                return JsonConvert.SerializeObject(list);
+            }
             if (val is Vector2 v2) return $"({v2.x}, {v2.y})";
             if (val is Vector3 v3) return $"({v3.x}, {v3.y}, {v3.z})";
             if (val is Vector4 v4) return $"({v4.x}, {v4.y}, {v4.z}, {v4.w})";
             if (val is Quaternion q) return $"({q.eulerAngles.x}, {q.eulerAngles.y}, {q.eulerAngles.z})";
             if (val is Color c) return $"({c.r}, {c.g}, {c.b}, {c.a})";
-            if (val is UnityEngine.Object obj) return obj.name;
+            if (val is UnityEngine.Object obj)
+            {
+                if (obj is GameObject go)
+                {
+                    if (go.transform.parent == null)
+                    {
+                        return AssetDatabase.GetAssetPath(obj);
+                    }
+                }
+                return obj.name;
+            }
+            if (val.GetType().IsSerializable)
+            {
+                var dict = new Dictionary<string, string>();
+                var members = val.GetType().GetMembers();
+                if (members != null)
+                {
+                    foreach (var member in members)
+                    {
+                        object memberValue = null;
+                        switch (member.MemberType)
+                        {
+                            case MemberTypes.Field:
+                                {
+                                    var field = (member as FieldInfo);
+                                    if (field.IsPublic || field.GetCustomAttribute<SerializeField>() != null)
+                                    {
+                                        memberValue = field.GetValue(val);
+                                    }
+                                }
+                                break;
+                            case MemberTypes.Property:
+                                {
+                                    var property = (member as PropertyInfo);
+                                    if (property.CanWrite)
+                                    {
+                                        memberValue = property.GetValue(val);
+                                    }
+                                }
+                                break;
+                            default:
+                                continue;
+                        }
+                        dict[member.Name] = FormatValue(memberValue);
+                    }
+                    return JsonConvert.SerializeObject(dict);
+                }
+            }
             return val.ToString();
         }
 
@@ -936,7 +1131,7 @@ namespace UnitySkills
         {
             var result = new Dictionary<string, object>();
             var type = c.GetType();
-            
+
             // Get key properties based on component type
             if (c is Transform t)
             {
