@@ -14,9 +14,9 @@ description: "Prefab management. Use when users want to create, open, save, clos
 **DO NOT** (common hallucinations):
 - `prefab_create_from_object` does not exist → use `prefab_create` (takes scene object name/instanceId and savePath)
 - `prefab_spawn` does not exist → use `prefab_instantiate`
-- `prefab_edit` / `prefab_modify` do not exist → use `prefab_stage_open` to open prefab stage, then modify the prefab in prefab stage scene, use `prefab_stage_save` to save all changes, finally use `prefab_stage_close` to close prefab stage
+- `prefab_edit` / `prefab_modify` do not exist → use `prefab_set_property` (edit prefab asset directly) or instantiate, modify, then `prefab_apply`
 - `prefab_save` does not exist → use `prefab_apply` (applies instance changes to source prefab)
-- Does not use `prefab_instantiate` to open prefab → use `prefab_stage_open`
+- Does not use `prefab_instantiate` to delete or move children of a prefab → use `prefab_stage_open` to open prefab stage, then modify the prefab in prefab stage scene, use `prefab_stage_save` to save all changes, finally use `prefab_stage_close` to close prefab stage
 
 **Routing**:
 - To modify components on a prefab instance in scene → use `component` module skills, then `prefab_apply`
