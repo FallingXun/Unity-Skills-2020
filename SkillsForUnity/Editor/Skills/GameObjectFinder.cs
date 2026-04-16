@@ -338,7 +338,7 @@ namespace UnitySkills
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
-                var current = prefabStage.openedFromInstanceRoot;
+                var current = prefabStage.prefabContentsRoot;
                 for (int i = 0; i < parts.Length; i++)
                 {
                     if(current != null)
@@ -353,38 +353,35 @@ namespace UnitySkills
                 if (current != null)
                     return current;
             }
-            else
-            {
-                foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount)
+
+            foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount)
                       .Select(SceneManager.GetSceneAt)
                       .Where(scene => scene.IsValid() && scene.isLoaded))
+            {
+                var rootObjects = scene.GetRootGameObjects();
+                int partIndex = 0;
+
+                if (parts.Length > 1 && scene.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase))
+                    partIndex = 1;
+
+                if (partIndex >= parts.Length)
+                    continue;
+
+                var current = rootObjects.FirstOrDefault(go =>
+                    go.name.Equals(parts[partIndex], System.StringComparison.OrdinalIgnoreCase));
+                if (current == null)
+                    continue;
+
+                partIndex++;
+                while (partIndex < parts.Length && current != null)
                 {
-                    var rootObjects = scene.GetRootGameObjects();
-                    int partIndex = 0;
-
-                    if (parts.Length > 1 && scene.name.Equals(parts[0], System.StringComparison.OrdinalIgnoreCase))
-                        partIndex = 1;
-
-                    if (partIndex >= parts.Length)
-                        continue;
-
-                    var current = rootObjects.FirstOrDefault(go =>
-                        go.name.Equals(parts[partIndex], System.StringComparison.OrdinalIgnoreCase));
-                    if (current == null)
-                        continue;
-
+                    current = FindDirectChild(current, parts[partIndex]);
                     partIndex++;
-                    while (partIndex < parts.Length && current != null)
-                    {
-                        current = FindDirectChild(current, parts[partIndex]);
-                        partIndex++;
-                    }
-
-                    if (current != null)
-                        return current;
                 }
-            }
 
+                if (current != null)
+                    return current;
+            }
 
             return null;
         }
@@ -436,13 +433,11 @@ namespace UnitySkills
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
-                return FindGameObject(prefabStage.openedFromInstanceRoot, name);
+                return FindGameObject(prefabStage.prefabContentsRoot, name);
             }
-            else
-            {
-                return GetAllSceneObjects()
+
+            return GetAllSceneObjects()
                     .FirstOrDefault(go => go.name.Equals(name, System.StringComparison.OrdinalIgnoreCase));
-            }
         }
 
         /// <summary>
@@ -453,21 +448,19 @@ namespace UnitySkills
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
-                return FindGameObject(prefabStage.openedFromInstanceRoot, name);
+                return FindGameObject(prefabStage.prefabContentsRoot, name);
             }
-            else
-            {
-                // Prefer exact word match first
-                var exactWord = GetAllSceneObjects()
-                    .FirstOrDefault(go => go.name.Split(' ', '_', '-').Any(
-                        word => word.Equals(name, System.StringComparison.OrdinalIgnoreCase)));
-                if (exactWord != null)
-                    return exactWord;
 
-                // Then try contains
-                return GetAllSceneObjects()
-                    .FirstOrDefault(go => go.name.IndexOf(name, System.StringComparison.OrdinalIgnoreCase) >= 0);
-            }
+            // Prefer exact word match first
+            var exactWord = GetAllSceneObjects()
+                .FirstOrDefault(go => go.name.Split(' ', '_', '-').Any(
+                    word => word.Equals(name, System.StringComparison.OrdinalIgnoreCase)));
+            if (exactWord != null)
+                return exactWord;
+
+            // Then try contains
+            return GetAllSceneObjects()
+                .FirstOrDefault(go => go.name.IndexOf(name, System.StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         /// <summary>

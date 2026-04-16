@@ -716,6 +716,11 @@ namespace UnitySkills
             if (targetType == typeof(AnimationCurve))
                 return ParseAnimationCurve(value);
 
+            if (typeof(UnityEngine.Object).IsAssignableFrom(targetType))
+            {
+                return ParseUnityObject(value, targetType);
+            }
+
             if (targetType.IsSerializable)
             {
                 return ParseSerialize(value, targetType);
@@ -882,6 +887,45 @@ namespace UnitySkills
             return parts.Select(p => int.Parse(p.Trim())).ToArray();
         }
 
+        private static object ParseUnityObject(string value, System.Type type)
+        {
+            object obj = null;
+            if (!string.IsNullOrEmpty(value))
+            {
+                var paths = value.Trim().Split(new[] { '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+                string assetPath = null;
+                string hierarchyPath = null;
+                if (paths != null)
+                {
+                    foreach (var path in paths)
+                    {
+                        var p = path.Replace("\\", "/");
+                        if (p.StartsWith("Assets/"))
+                        {
+                            assetPath = p;
+                        }
+                        else
+                        {
+                            hierarchyPath = p;
+                        }
+                    }
+                }
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    obj = ResolveAssetReference(type, assetPath);
+                    if (obj != null && !string.IsNullOrEmpty(hierarchyPath))
+                    {
+                         obj = (obj as GameObject).transform.Find(hierarchyPath);
+                    }
+                }
+                else if(!string.IsNullOrEmpty(hierarchyPath))
+                {
+                    obj = ResolveReference(type, hierarchyPath, hierarchyPath);
+                }
+            }
+            return obj;
+        }
+
         private static object ParseSerialize(string value, System.Type type)
         {
             var serializableObj = System.Activator.CreateInstance(type);
@@ -910,21 +954,7 @@ namespace UnitySkills
                     }
                     object memberValue = null;
                     var itemValue = json[member.Name]?.ToString();
-                    if (targetType == typeof(UnityEngine.Object))
-                    {
-                        if (!string.IsNullOrEmpty(itemValue))
-                        {
-                            memberValue = ResolveAssetReference(targetType, itemValue);
-                            if (memberValue == null)
-                            {
-                                memberValue = ResolveReference(targetType, itemValue, itemValue);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        memberValue = ConvertValue(itemValue, targetType);
-                    }
+                    memberValue = ConvertValue(itemValue, targetType);
                     if (member.MemberType == MemberTypes.Field)
                     {
                         (member as FieldInfo).SetValue(serializableObj, memberValue);
