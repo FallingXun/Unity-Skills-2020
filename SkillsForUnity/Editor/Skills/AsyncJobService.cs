@@ -217,7 +217,7 @@ namespace UnitySkills
             var callbacks = new TestCallbacks(job.jobId);
             api.RegisterCallbacks(callbacks);
 
-            var filterObj = BuildTestFilter(testMode, filter, mode);
+            var filterObj = BuildTestFilter(testMode, filter, mode, job);
 
             TestRuntimeJobs[job.jobId] = new TestRuntimeContext
             {
@@ -286,7 +286,7 @@ namespace UnitySkills
             return false;
         }
 
-        private static Filter BuildTestFilter(string testMode, string filter, TestMode mode)
+        private static Filter BuildTestFilter(string testMode, string filter, TestMode mode, BatchJobRecord jobForWarnings = null)
         {
             var filterObj = new Filter { testMode = mode };
             if (string.IsNullOrEmpty(filter))
@@ -308,6 +308,10 @@ namespace UnitySkills
             }
 
             filterObj.testNames = new[] { filter };
+            jobForWarnings?.warnings.Add(
+                $"Test filter '{filter}' did not match any cached Unity Test Runner discovery result. " +
+                "Falling back to raw filter as testName — may match across multiple assemblies. " +
+                "Run test_discover_start first to ensure accurate filtering.");
             return filterObj;
         }
 
@@ -727,7 +731,7 @@ namespace UnitySkills
                     var callbacks = new TestCallbacks(job.jobId);
                     api.RegisterCallbacks(callbacks);
 
-                    var filterObj = BuildTestFilter(testMode, filter, TestMode.EditMode);
+                    var filterObj = BuildTestFilter(testMode, filter, TestMode.EditMode, job);
 
                     TestRuntimeJobs[job.jobId] = new TestRuntimeContext
                     {

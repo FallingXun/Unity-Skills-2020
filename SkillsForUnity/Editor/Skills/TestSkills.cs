@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 using UnityEditor;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
@@ -85,10 +84,10 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("test_list", "List available tests",
+        [UnitySkill("test_list", "List available tests via Unity Test Runner async discovery. Returns success=false + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry test_list.",
             Category = SkillCategory.Test, Operation = SkillOperation.Query,
             Tags = new[] { "test", "list", "discover", "enumerate" },
-            Outputs = new[] { "testMode", "count", "tests" },
+            Outputs = new[] { "testMode", "count", "tests", "discoveryJobId", "discoveryStatus" },
             ReadOnly = true)]
         public static object TestList(string testMode = "EditMode", int limit = 100)
         {
@@ -211,26 +210,6 @@ namespace UnitySkills
             };
         }
 
-        private static void CollectTests(ITestAdaptor test, List<object> tests, int limit)
-        {
-            if (tests.Count >= limit)
-                return;
-
-            if (!test.HasChildren)
-            {
-                tests.Add(new
-                {
-                    name = test.Name,
-                    fullName = test.FullName,
-                    runState = test.RunState.ToString()
-                });
-                return;
-            }
-
-            foreach (var child in test.Children)
-                CollectTests(child, tests, limit);
-        }
-
         [UnitySkill("test_run_by_name", "Run specific tests by class or method name. Returns a unified jobId.",
             Category = SkillCategory.Test, Operation = SkillOperation.Execute,
             Tags = new[] { "test", "run", "name", "specific", "job" },
@@ -282,10 +261,10 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("test_list_categories", "List test categories",
+        [UnitySkill("test_list_categories", "List test categories via Unity Test Runner async discovery. Returns success=false + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry.",
             Category = SkillCategory.Test, Operation = SkillOperation.Query,
             Tags = new[] { "test", "categories", "list", "nunit" },
-            Outputs = new[] { "count", "categories" },
+            Outputs = new[] { "count", "categories", "discoveryJobId", "discoveryStatus" },
             ReadOnly = true)]
         public static object TestListCategories(string testMode = "EditMode")
         {
@@ -484,16 +463,6 @@ namespace UnitySkills
                 SemanticWarnings = response["validation"]?["warnings"]?.ToObject<string[]>() ?? Array.Empty<string>(),
                 MetadataWarnings = FindMetadataWarnings(metadataIssues, skill.Name)
             };
-        }
-
-        private static void CollectCategories(ITestAdaptor test, HashSet<string> categories)
-        {
-            if (test.Categories != null)
-                foreach (var cat in test.Categories)
-                    categories.Add(cat);
-            if (test.HasChildren)
-                foreach (var child in test.Children)
-                    CollectCategories(child, categories);
         }
 
         [UnitySkill("test_create_editmode", "Create an EditMode test script template and return a compile-monitor job.",
@@ -765,6 +734,13 @@ public class {testName}
         {
             var mode = ParseTestMode(testMode);
             var normalizedMode = NormalizeTestMode(testMode);
+
+            var inflight = FindInflightDiscovery(normalizedMode);
+            if (inflight != null)
+                return inflight;
+
+            PruneOldDiscoveries(normalizedMode);
+
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var job = new BatchJobRecord
             {
@@ -803,16 +779,13 @@ public class {testName}
 
                         var discovered = new List<DiscoveredTestCase>();
                         CollectDiscoveredTests(root, discovered);
-                        var ordered = discovered
-                            .OrderBy(test => test.FullName, StringComparer.OrdinalIgnoreCase)
-                            .ToArray();
 
                         storedJob.status = "completed";
                         storedJob.progress = 100;
                         storedJob.currentStage = "completed";
                         storedJob.updatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                        storedJob.resultSummary = $"Discovered {ordered.Length} tests via Unity Test Runner.";
-                        storedJob.resultData["tests"] = ordered
+                        storedJob.resultSummary = $"Discovered {discovered.Count} tests via Unity Test Runner.";
+                        storedJob.resultData["tests"] = discovered
                             .Select(test => new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                             {
                                 ["name"] = test.Name,
@@ -822,7 +795,7 @@ public class {testName}
                             })
                             .Cast<object>()
                             .ToList();
-                        storedJob.resultData["count"] = ordered.Length;
+                        storedJob.resultData["count"] = discovered.Count;
                         BatchPersistence.UpsertJob(storedJob);
                         BatchPersistence.FlushIfDirty();
                     }
@@ -842,6 +815,35 @@ public class {testName}
             }
 
             return job;
+        }
+
+        private static BatchJobRecord FindInflightDiscovery(string normalizedMode)
+        {
+            return BatchPersistence.ListJobs(100)
+                .FirstOrDefault(job =>
+                    job != null &&
+                    string.Equals(job.kind, TestDiscoveryJobKind, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(job.status, "running", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(GetMetadataString(job, "testMode"), normalizedMode, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void PruneOldDiscoveries(string normalizedMode)
+        {
+            var stale = BatchPersistence.ListJobs(100)
+                .Where(job =>
+                    job != null &&
+                    string.Equals(job.kind, TestDiscoveryJobKind, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(job.status, "running", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(GetMetadataString(job, "testMode"), normalizedMode, StringComparison.OrdinalIgnoreCase))
+                .Select(job => job.jobId)
+                .ToArray();
+
+            if (stale.Length == 0)
+                return;
+
+            foreach (var id in stale)
+                BatchPersistence.RemoveJob(id);
+            BatchPersistence.FlushIfDirty();
         }
 
         internal static string[] ResolveExactTestNames(string testMode, string filter)
