@@ -6,7 +6,7 @@ All notable changes to **UnitySkills** will be documented in this file.
 
 ### ⚠ BREAKING CHANGES
 
-- **`test_list` / `test_list_categories` 行为变更（PR #33 by @Eggnisi）** — 测试发现从「源码扫描」改为「Unity Test Runner 原生异步发现」。首次调用（缓存缺失）不再同步返回测试列表，而是返回 `success=false` + 新字段 `discoveryJobId` / `discoveryStatus` / `discoveryMode`，并自动启动后台 discovery；调用方必须轮询 `test_discover_get_result(jobId)`，然后重试 `test_list` / `test_list_categories`。`discoveryMode` 字面量从 `source_scan_with_file_dependencies` 改为 `unity_test_runner_async_cache`。
+- **`test_list` / `test_list_categories` 行为变更（PR #33 by @Eggnisi）** — 测试发现从「源码扫描」改为「Unity Test Runner 原生异步发现」。首次调用（缓存缺失）不再同步返回测试列表，而是返回 `success=true` + `pendingDiscovery=true` + `discoveryJobId` / `discoveryStatus` / `discoveryMode` + `message`，并自动启动后台 discovery；调用方判断 `pendingDiscovery==true` 后轮询 `test_discover_get_result(jobId)`，然后重试 `test_list` / `test_list_categories`。`discoveryMode` 字面量从 `source_scan_with_file_dependencies` 改为 `unity_test_runner_async_cache`。<br>**注**：未使用 `success=false + error` 是因为 `SkillRouter` 会把这种形态转成统一错误响应（`SkillErrorResponse`）并丢掉 `discoveryJobId` 等字段——`pendingDiscovery` 标志位绕开了该转换。
 - **`AsyncJobService.BuildTestFilter` 不再设置 `assemblyNames`** — 删除非 Unity 原生的程序集名推断逻辑（`TestSkills.ResolveGroupAssemblyNames` 同步移除）。filter 在缓存未命中时 fallback 为 `new[] { filter }` 作为 testName，并向 job.warnings 写入一条诊断说明。
 
 ### Added
@@ -14,7 +14,7 @@ All notable changes to **UnitySkills** will be documented in this file.
 - **`StartTestDiscovery` 并发守卫与旧 discovery 清理** — 进入 `StartTestDiscovery` 时若已有同 testMode 的 `running` 状态 discovery，则直接复用而非新建；启动新 discovery 前主动清理同 testMode 的 `completed/failed` 旧 job（`PruneOldDiscoveries`），避免 100 条 job 容量挤兑 `test/smoke/compile` 等重要 job。
 
 ### Changed
-- **`test_list` / `test_list_categories` Description 字段** — 在 `[UnitySkill(...)]` 属性中明确写出「首次调用返回 `success=false` + `discoveryJobId`」契约。
+- **`test_list` / `test_list_categories` Description 字段** — 在 `[UnitySkill(...)]` 属性中明确写出「首次调用返回 `pendingDiscovery=true` + `discoveryJobId`」契约。
 - **discovery 结果排序统一在 `GetDiscoveredTests` 出口处** — 移除 `StartTestDiscovery` 异步回调内重复的 `OrderBy`，避免双重排序，对反序列化路径同样统一处理。
 - **filter fallback 诊断** — `AsyncJobService.BuildTestFilter` 在缓存未命中走 fallback（直接以 filter 作 testName）时，向当前 job.warnings 写入诊断说明，便于调用方在 `job_status` 中查看为什么测试匹配跨多个程序集。
 

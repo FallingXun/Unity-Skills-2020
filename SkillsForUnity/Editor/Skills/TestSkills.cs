@@ -84,10 +84,10 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("test_list", "List available tests via Unity Test Runner async discovery. Returns success=false + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry test_list.",
+        [UnitySkill("test_list", "List available tests via Unity Test Runner async discovery. Returns pendingDiscovery=true + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry test_list.",
             Category = SkillCategory.Test, Operation = SkillOperation.Query,
             Tags = new[] { "test", "list", "discover", "enumerate" },
-            Outputs = new[] { "testMode", "count", "tests", "discoveryJobId", "discoveryStatus" },
+            Outputs = new[] { "testMode", "count", "tests", "pendingDiscovery", "discoveryJobId", "discoveryStatus" },
             ReadOnly = true)]
         public static object TestList(string testMode = "EditMode", int limit = 100)
         {
@@ -97,12 +97,13 @@ namespace UnitySkills
                 var started = StartTestDiscovery(testMode);
                 return new
                 {
-                    success = false,
+                    success = true,
+                    pendingDiscovery = true,
                     testMode,
                     discoveryMode = TestDiscoveryMode,
-                    error = "No cached Unity Test Runner discovery result is available yet. Discovery has been started asynchronously; poll with test_discover_get_result(jobId) and retry test_list after it completes.",
                     discoveryJobId = started.jobId,
-                    discoveryStatus = started.status
+                    discoveryStatus = started.status,
+                    message = "No cached Unity Test Runner discovery result is available yet. Discovery has been started asynchronously; poll test_discover_get_result(jobId) and retry test_list after it completes."
                 };
             }
 
@@ -261,10 +262,10 @@ namespace UnitySkills
             };
         }
 
-        [UnitySkill("test_list_categories", "List test categories via Unity Test Runner async discovery. Returns success=false + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry.",
+        [UnitySkill("test_list_categories", "List test categories via Unity Test Runner async discovery. Returns pendingDiscovery=true + discoveryJobId on first call (cache miss) — poll test_discover_get_result(jobId) then retry.",
             Category = SkillCategory.Test, Operation = SkillOperation.Query,
             Tags = new[] { "test", "categories", "list", "nunit" },
-            Outputs = new[] { "count", "categories", "discoveryJobId", "discoveryStatus" },
+            Outputs = new[] { "count", "categories", "pendingDiscovery", "discoveryJobId", "discoveryStatus" },
             ReadOnly = true)]
         public static object TestListCategories(string testMode = "EditMode")
         {
@@ -274,12 +275,13 @@ namespace UnitySkills
                 var started = StartTestDiscovery(testMode);
                 return new
                 {
-                    success = false,
+                    success = true,
+                    pendingDiscovery = true,
                     testMode,
                     discoveryMode = TestDiscoveryMode,
-                    error = "No cached Unity Test Runner discovery result is available yet. Discovery has been started asynchronously; poll with test_discover_get_result(jobId) and retry test_list_categories after it completes.",
                     discoveryJobId = started.jobId,
-                    discoveryStatus = started.status
+                    discoveryStatus = started.status,
+                    message = "No cached Unity Test Runner discovery result is available yet. Discovery has been started asynchronously; poll test_discover_get_result(jobId) and retry test_list_categories after it completes."
                 };
             }
 
