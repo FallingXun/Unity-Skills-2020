@@ -2,7 +2,7 @@
 
 All notable changes to **UnitySkills** will be documented in this file.
 
-## [1.9.0] - 2026-05-20（草稿）
+## [1.9.0] - 2026-05-20
 
 ### ⚠ BREAKING CHANGES
 
@@ -21,12 +21,15 @@ All notable changes to **UnitySkills** will be documented in this file.
 - **新错误码** — `MODE_RESTRICTED`（Approval 下 FullAuto skill 未授权）/ `MODE_FORBIDDEN`（NeverInSemi 在 Approval/Auto 下被拒）/ `GRANT_PENDING_APPROVAL`（Panel 渠道等待用户点 Approve）。
 - **AI Config 卡片 per-scope 卸载** — Skill Installer 卡片的 Uninstall 按钮根据安装状态动态变形：未安装 → 灰态占位；仅一处安装 → 直接卸载该 scope（按钮自带 scope 标签）；两处都装 → 单按钮带 `▾` 展开 GenericMenu，分别选择 Project / Global。点击瞬间读取最新状态，避免 stale 捕获。
 - **审计日志窗口删除能力** — `Window > UnitySkills > Audit Log` 每行末尾新增悬停才显形的 `✕` 单条删除按钮，工具栏新增 `🗑 Clear All` 红色危险按钮整体清空；删除动作本身会写 `audit_deleted` / `audit_cleared` 追踪事件到日志，保留 trust anchor 属性。底层 `SkillsAuditLog.DeleteEntry(ts, type)` 与 `ClearAll()` 用 `.tmp` + `File.Replace` 做原子重写，并发安全。
+- **UnitySkillsWindow UI Toolkit 重构** — 原 1157 行单文件 IMGUI 拆为 UI Toolkit 多 Tab 架构：`UnitySkillsWindow.uxml/uss` + 4 个 Tab（Server / AIConfig / Skills / History）+ 各 `*TabController.cs`；新增 `Topbar`（mode 徽章 + 模式切换菜单）/ `SettingsDrawer`（抽屉式权限与端口设置）/ `Footer` 三个常驻 controller，UI 样式全部走 USS 主题文件。
+- **AI Config 卡片重写为数据驱动 + Agent 图标** — `_agentConfigs` 元数据列表统一描述 4 个内置 Agent（Claude Code / Codex / Antigravity / Cursor），新增 Agent 仅需追加一条；UI 卡片含品牌图标（`Editor/UI/Icons/<id>.png`）、安装状态徽章和 Custom Agent 自定义路径卡片。
 
 ### Changed
 - **`[UnitySkill]` attribute** — 新增 `Mode` 字段（`SkillMode.SemiAuto` / `SkillMode.FullAuto`，默认 FullAuto）；121 个明确低风险 skill 显式标注为 SemiAuto。
 - **`GET /health` 响应** — 新增 `currentMode` / `panelApprovalRequired` / `pendingCount` / `grantedCount` 四个字段，AI 启动时一次拉到全部权限状态。
 - **`GET /skills` 响应** — 每条 skill 增加 `mode` 字段（`"semi"` | `"full"`），不再返回 `never_in_semi`（改由自动判定）。
 - **NeverInSemi 自动判定** — 不再手标，由元数据自动归类：`Operation.HasFlag(Delete)` / `MayEnterPlayMode` / `MayTriggerReload` / `RiskLevel="high"`，加 `_explicitNeverList` 兜底（`scene_clear` / `scene_new` / `batch_apply` 等 5-10 个）；覆盖 40+ skill。
+- **版本号更新** — `SkillsLogger.Version` / `package.json` / Python helper `__version__` / `agent.md` 同步提升到 `1.9.0`。
 
 ### Migration Guide
 - **老用户**：升级到 v1.9.0 后默认保持 Bypass，无需任何操作，行为与原 Full-Auto 完全一致；如需启用权限审批，到 `Window > UnitySkills > Server` 面板切到 Approval / Auto。
