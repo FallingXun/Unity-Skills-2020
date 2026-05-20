@@ -6,34 +6,29 @@ using UnityEditor;
 
 namespace UnitySkills
 {
+    /// <summary>
+    /// AI Config Tab — one card per supported Agent (Claude Code / Codex /
+    /// Antigravity / Cursor) plus a Custom Agent card.
+    /// Cards are built dynamically so adding a new agent only requires one
+    /// entry in _agentConfigs.
+    /// </summary>
     public class AIConfigTabController
     {
         private const string TabUxmlPath = "Packages/com.besty.unity-skills/Editor/UI/Tabs/AIConfigTab.uxml";
+        private const string IconsFolder = "Packages/com.besty.unity-skills/Editor/UI/Icons";
 
         private readonly VisualElement _root;
         private readonly UnitySkillsWindow _window;
 
-        // UI references
-        private Label _configTitle;
         private VisualElement _agentsContainer;
+        private HelpBox       _helpBox;
 
-        private Label _customTitle;
-        private Label _customPathLabel;
-        private TextField _customPathField;
-        private Button _customPathBrowseBtn;
-        private Label _customAgentLabel;
-        private TextField _customAgentField;
-        private Button _customInstallBtn;
-
-        private HelpBox _helpBox;
-
-        // Agent metadata configs
-        private List<AgentConfig> _agentConfigs;
-
+        // ----- Per-agent metadata -----
         private class AgentConfig
         {
-            public string id;
-            public string name;
+            public string id;          // Used for icon file lookup (icons/<id>.png)
+            public string brandClass;  // CSS class on the icon container
+            public string nameDisplay;
             public Func<bool> isProjInstalled;
             public Func<bool> isGlobInstalled;
             public Func<bool, (bool success, string message)> installFunc;
@@ -41,42 +36,30 @@ namespace UnitySkills
             public Func<bool, string, string> getInstallSuccessMsg;
         }
 
+        private List<AgentConfig> _agentConfigs;
+
+        // Custom agent inputs (kept across rebuilds)
+        private string _customPath = "";
+        private string _customName = "Custom";
+
         public AIConfigTabController(VisualElement root, UnitySkillsWindow window)
         {
             _root = root;
             _window = window;
 
-            // Load tab UXML and append to root
             var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabUxmlPath);
-            if (uxml != null)
+            if (uxml == null)
             {
-                uxml.CloneTree(_root);
-            }
-            else
-            {
-                Debug.LogError($"[UnitySkills] Failed to load AIConfigTab UXML at path: {TabUxmlPath}");
+                Debug.LogError($"[UnitySkills] Failed to load AIConfigTab UXML: {TabUxmlPath}");
                 return;
             }
+            uxml.CloneTree(_root);
 
-            CacheUiReferences();
-            SetupAgentConfigs();
-            Initialize();
-        }
-
-        private void CacheUiReferences()
-        {
-            _configTitle = _root.Q<Label>("config-title");
             _agentsContainer = _root.Q<VisualElement>("agents-container");
+            _helpBox         = _root.Q<HelpBox>("help-box");
 
-            _customTitle = _root.Q<Label>("custom-title");
-            _customPathLabel = _root.Q<Label>("custom-path-label");
-            _customPathField = _root.Q<TextField>("custom-path-field");
-            _customPathBrowseBtn = _root.Q<Button>("custom-path-browse-btn");
-            _customAgentLabel = _root.Q<Label>("custom-agent-label");
-            _customAgentField = _root.Q<TextField>("custom-agent-field");
-            _customInstallBtn = _root.Q<Button>("custom-install-btn");
-
-            _helpBox = _root.Q<HelpBox>("help-box");
+            SetupAgentConfigs();
+            RebuildAgentsList();
         }
 
         private void SetupAgentConfigs()
@@ -85,8 +68,8 @@ namespace UnitySkills
             {
                 new AgentConfig
                 {
-                    id = "claude_code",
-                    name = "Claude Code",
+                    id = "claudecode", brandClass = "brand-claudecode",
+                    nameDisplay = "Claude Code",
                     isProjInstalled = () => SkillInstaller.IsClaudeProjectInstalled,
                     isGlobInstalled = () => SkillInstaller.IsClaudeGlobalInstalled,
                     installFunc = SkillInstaller.InstallClaude,
@@ -94,8 +77,21 @@ namespace UnitySkills
                 },
                 new AgentConfig
                 {
-                    id = "antigravity",
-                    name = "Antigravity",
+                    id = "codex", brandClass = "brand-codex",
+                    nameDisplay = "Codex",
+                    isProjInstalled = () => SkillInstaller.IsCodexProjectInstalled,
+                    isGlobInstalled = () => SkillInstaller.IsCodexGlobalInstalled,
+                    installFunc = SkillInstaller.InstallCodex,
+                    uninstallFunc = SkillInstaller.UninstallCodex,
+                    getInstallSuccessMsg = (global, msg) =>
+                        SkillsLocalization.Current == SkillsLocalization.Language.Chinese
+                            ? "安装成功！\n" + msg + (global ? "" : "\n\n注意：Antigravity 和 Codex 工作区共享 .agents/skills 路径。")
+                            : "Install success!\n" + msg + (global ? "" : "\n\nNote: Antigravity and Codex share .agents/skills in workspace mode.")
+                },
+                new AgentConfig
+                {
+                    id = "antigravity", brandClass = "brand-antigravity",
+                    nameDisplay = "Antigravity",
                     isProjInstalled = () => SkillInstaller.IsAntigravityProjectInstalled,
                     isGlobInstalled = () => SkillInstaller.IsAntigravityGlobalInstalled,
                     installFunc = SkillInstaller.InstallAntigravity,
@@ -103,20 +99,8 @@ namespace UnitySkills
                 },
                 new AgentConfig
                 {
-                    id = "codex",
-                    name = "Codex",
-                    isProjInstalled = () => SkillInstaller.IsCodexProjectInstalled,
-                    isGlobInstalled = () => SkillInstaller.IsCodexGlobalInstalled,
-                    installFunc = SkillInstaller.InstallCodex,
-                    uninstallFunc = SkillInstaller.UninstallCodex,
-                    getInstallSuccessMsg = (global, msg) => SkillsLocalization.Current == SkillsLocalization.Language.Chinese
-                        ? "安装成功！\n" + msg + (global ? "" : "\n\n注意：Antigravity 和 Codex 工作区共享 .agents/skills 路径。")
-                        : "Install success!\n" + msg + (global ? "" : "\n\nNote: Antigravity and Codex share .agents/skills in workspace mode.")
-                },
-                new AgentConfig
-                {
-                    id = "cursor",
-                    name = "Cursor",
+                    id = "cursor", brandClass = "brand-cursor",
+                    nameDisplay = "Cursor",
                     isProjInstalled = () => SkillInstaller.IsCursorProjectInstalled,
                     isGlobInstalled = () => SkillInstaller.IsCursorGlobalInstalled,
                     installFunc = SkillInstaller.InstallCursor,
@@ -125,166 +109,163 @@ namespace UnitySkills
             };
         }
 
-        private void Initialize()
-        {
-            // Bind custom path browse button
-            if (_customPathBrowseBtn != null)
-            {
-                _customPathBrowseBtn.clicked += BrowseCustomPath;
-            }
-
-            // Bind custom install button
-            if (_customInstallBtn != null)
-            {
-                _customInstallBtn.clicked += InstallCustom;
-            }
-
-            // Set default custom fields
-            if (_customAgentField != null)
-            {
-                _customAgentField.value = "Custom";
-            }
-
-            // Build Agent list
-            RebuildAgentsList();
-        }
-
-        private void BrowseCustomPath()
-        {
-            if (_customPathField == null) return;
-
-            string title = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "选择安装目录" : "Select Install Directory";
-            string selectedPath = EditorUtility.OpenFolderPanel(title, _customPathField.value, "");
-            if (!string.IsNullOrEmpty(selectedPath))
-            {
-                _customPathField.value = selectedPath;
-            }
-        }
-
-        private void InstallCustom()
-        {
-            if (_customPathField == null || _customAgentField == null) return;
-
-            string path = _customPathField.value;
-            string agentName = _customAgentField.value;
-
-            if (string.IsNullOrEmpty(path))
-            {
-                string errorTitle = "Error";
-                string errorMsg = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "路径不能为空" : "Path cannot be empty";
-                EditorUtility.DisplayDialog(errorTitle, errorMsg, "OK");
-                return;
-            }
-
-            var result = SkillInstaller.InstallCustom(path, agentName);
-            if (result.success)
-            {
-                EditorUtility.DisplayDialog("Success", L("install_success"), "OK");
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Error", string.Format(L("install_failed"), result.message), "OK");
-            }
-        }
-
         private void RebuildAgentsList()
         {
             if (_agentsContainer == null) return;
             _agentsContainer.Clear();
 
             foreach (var cfg in _agentConfigs)
-            {
-                var card = new VisualElement();
-                card.AddToClassList("card");
+                _agentsContainer.Add(BuildAgentCard(cfg));
 
-                // Agent Header Name Row
-                var headerRow = new VisualElement();
-                headerRow.AddToClassList("horizontal-layout");
-                headerRow.style.marginBottom = 6;
-
-                var nameLabel = new Label(cfg.name);
-                nameLabel.AddToClassList("bold-label");
-                nameLabel.style.fontSize = 12;
-                headerRow.Add(nameLabel);
-
-                card.Add(headerRow);
-
-                // Row 1: Project Installation
-                var projRow = CreateAgentRow(cfg, false);
-                card.Add(projRow);
-
-                // Space
-                var spacing = new VisualElement();
-                spacing.style.height = 4;
-                card.Add(spacing);
-
-                // Row 2: Global Installation
-                var globRow = CreateAgentRow(cfg, true);
-                card.Add(globRow);
-
-                _agentsContainer.Add(card);
-            }
+            _agentsContainer.Add(BuildCustomAgentCard());
         }
 
-        private VisualElement CreateAgentRow(AgentConfig cfg, bool isGlobal)
+        private VisualElement BuildAgentCard(AgentConfig cfg)
         {
-            var row = new VisualElement();
-            row.AddToClassList("horizontal-layout");
-            row.style.height = 22;
+            bool projInstalled = cfg.isProjInstalled();
+            bool globInstalled = cfg.isGlobInstalled();
+            // Show "Installed" badge if either scope has been installed.
+            bool anyInstalled = projInstalled || globInstalled;
 
-            // 1. Row Label
-            string rowText = isGlobal ? L("install_global") : L("install_project");
-            var label = new Label(rowText + ":");
-            label.style.width = 110;
-            label.style.fontSize = 11;
-            row.Add(label);
+            var card = new VisualElement();
+            card.AddToClassList("agent-card");
 
-            // 2. Status Label & Buttons Container
-            var actionsContainer = new VisualElement();
-            actionsContainer.AddToClassList("horizontal-layout");
-            actionsContainer.AddToClassList("flex-grow");
-            actionsContainer.style.justifyContent = Justify.FlexStart;
+            // Head
+            var head = new VisualElement();
+            head.AddToClassList("agent-card-head");
+            head.style.flexDirection = FlexDirection.Row;
+            head.style.alignItems = Align.Center;
 
-            bool isInstalled = isGlobal ? cfg.isGlobInstalled() : cfg.isProjInstalled();
-
-            if (isInstalled)
+            var icon = new VisualElement();
+            icon.AddToClassList("agent-icon");
+            icon.AddToClassList(cfg.brandClass);
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{IconsFolder}/{cfg.id}.png");
+            if (tex != null)
             {
-                // Installed text label
-                var installedLabel = new Label(L("installed"));
-                installedLabel.AddToClassList("bold-label");
-                installedLabel.style.color = new Color(0.3f, 0.8f, 0.4f);
-                installedLabel.style.fontSize = 11;
-                installedLabel.style.marginRight = 10;
-                installedLabel.style.width = 60;
-                actionsContainer.Add(installedLabel);
-
-                // Update Button
-                var updateBtn = new Button(() => OnInstallClick(cfg, isGlobal, true));
-                updateBtn.text = L("update");
-                updateBtn.AddToClassList("btn-mini");
-                updateBtn.style.width = 50;
-                updateBtn.style.marginRight = 4;
-                actionsContainer.Add(updateBtn);
-
-                // Uninstall Button
-                var uninstallBtn = new Button(() => OnUninstallClick(cfg, isGlobal));
-                uninstallBtn.text = L("uninstall");
-                uninstallBtn.AddToClassList("btn-mini");
-                uninstallBtn.style.width = 60;
-                actionsContainer.Add(uninstallBtn);
+                // Use backgroundImage instead of Image.image — more reliable in
+                // Editor windows under UI Toolkit 2022.3+. Also lets USS tint.
+                icon.style.backgroundImage = new StyleBackground(tex);
+                icon.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
             }
-            else
+            head.Add(icon);
+
+            var nameLabel = new Label(cfg.nameDisplay);
+            nameLabel.AddToClassList("agent-name");
+            head.Add(nameLabel);
+
+            var statusBadge = new Label(SkillsLocalization.Get(
+                anyInstalled ? "agent_status_installed" : "agent_status_not_installed"));
+            statusBadge.AddToClassList("agent-status");
+            statusBadge.AddToClassList(anyInstalled ? "installed" : "not-installed");
+            head.Add(statusBadge);
+
+            card.Add(head);
+
+            // Actions row
+            var actions = new VisualElement();
+            actions.AddToClassList("agent-card-actions");
+            actions.style.flexDirection = FlexDirection.Row;
+
+            // Project button — install or update depending on state
+            var projBtn = new Button(() => OnInstallClick(cfg, isGlobal: false, isUpdate: projInstalled));
+            projBtn.AddToClassList("mini-btn");
+            projBtn.AddToClassList(projInstalled ? "update" : "install");
+            projBtn.text = SkillsLocalization.Get(projInstalled ? "agent_update_project" : "agent_install_project");
+            actions.Add(projBtn);
+
+            // Global button
+            var globBtn = new Button(() => OnInstallClick(cfg, isGlobal: true, isUpdate: globInstalled));
+            globBtn.AddToClassList("mini-btn");
+            globBtn.AddToClassList(globInstalled ? "update" : "install");
+            globBtn.text = SkillsLocalization.Get(globInstalled ? "agent_update_global" : "agent_install_global");
+            actions.Add(globBtn);
+
+            // Uninstall — combined dialog asks which scope; or per-scope if only one installed.
+            var uninstallBtn = new Button(() => OnUninstallClick(cfg, projInstalled, globInstalled));
+            uninstallBtn.AddToClassList("mini-btn");
+            uninstallBtn.AddToClassList("uninstall");
+            uninstallBtn.text = SkillsLocalization.Get("uninstall");
+            uninstallBtn.SetEnabled(anyInstalled);
+            actions.Add(uninstallBtn);
+
+            card.Add(actions);
+            return card;
+        }
+
+        private VisualElement BuildCustomAgentCard()
+        {
+            var card = new VisualElement();
+            card.AddToClassList("agent-card");
+
+            var head = new VisualElement();
+            head.AddToClassList("agent-card-head");
+            head.style.flexDirection = FlexDirection.Row;
+            head.style.alignItems = Align.Center;
+
+            var icon = new Label("+");
+            icon.AddToClassList("agent-icon");
+            icon.AddToClassList("brand-custom");
+            head.Add(icon);
+
+            var nameLabel = new Label(SkillsLocalization.Get("agent_custom_title"));
+            nameLabel.AddToClassList("agent-name");
+            head.Add(nameLabel);
+
+            card.Add(head);
+
+            // Path row
+            var pathRow = new VisualElement();
+            pathRow.AddToClassList("setting-row");
+            pathRow.style.flexDirection = FlexDirection.Row;
+            pathRow.style.alignItems = Align.Center;
+            pathRow.style.marginTop = 4;
+
+            var pathField = new TextField();
+            pathField.value = _customPath;
+            pathField.style.flexGrow = 1;
+            pathField.tooltip = SkillsLocalization.Get("agent_custom_path_placeholder");
+            pathField.RegisterValueChangedCallback(e => _customPath = e.newValue ?? "");
+            pathRow.Add(pathField);
+
+            var browseBtn = new Button(() =>
             {
-                // Install Button
-                var installBtn = new Button(() => OnInstallClick(cfg, isGlobal, false));
-                installBtn.text = isGlobal ? L("install_global") : L("install_project");
-                installBtn.AddToClassList("btn-mini");
-                installBtn.style.width = 120;
-                actionsContainer.Add(installBtn);
-            }
+                string title = SkillsLocalization.Current == SkillsLocalization.Language.Chinese
+                    ? "选择安装目录" : "Select Install Directory";
+                string p = EditorUtility.OpenFolderPanel(title, _customPath, "");
+                if (!string.IsNullOrEmpty(p))
+                {
+                    _customPath = p;
+                    pathField.value = p;
+                }
+            });
+            browseBtn.AddToClassList("mini-btn");
+            browseBtn.text = SkillsLocalization.Get("agent_custom_browse");
+            browseBtn.style.marginLeft = 4;
+            pathRow.Add(browseBtn);
+            card.Add(pathRow);
 
-            row.Add(actionsContainer);
-            return row;
+            // Name row
+            var nameRow = new VisualElement();
+            nameRow.AddToClassList("setting-row");
+            nameRow.style.flexDirection = FlexDirection.Row;
+            nameRow.style.alignItems = Align.Center;
+
+            var nameInput = new TextField();
+            nameInput.value = _customName;
+            nameInput.style.flexGrow = 1;
+            nameInput.tooltip = SkillsLocalization.Get("agent_custom_name_placeholder");
+            nameInput.RegisterValueChangedCallback(e => _customName = e.newValue ?? "");
+            nameRow.Add(nameInput);
+
+            var installBtn = new Button(() => InstallCustom());
+            installBtn.AddToClassList("mini-btn");
+            installBtn.AddToClassList("install");
+            installBtn.text = SkillsLocalization.Get("agent_custom_install");
+            installBtn.style.marginLeft = 4;
+            nameRow.Add(installBtn);
+            card.Add(nameRow);
+
+            return card;
         }
 
         private void OnInstallClick(AgentConfig cfg, bool isGlobal, bool isUpdate)
@@ -292,69 +273,87 @@ namespace UnitySkills
             var result = cfg.installFunc(isGlobal);
             if (result.success)
             {
-                string successMsg = cfg.getInstallSuccessMsg != null 
-                    ? cfg.getInstallSuccessMsg(isGlobal, result.message) 
-                    : L("install_success") + "\n" + result.message;
-
-                EditorUtility.DisplayDialog("Success", successMsg, "OK");
+                string msg = cfg.getInstallSuccessMsg != null
+                    ? cfg.getInstallSuccessMsg(isGlobal, result.message)
+                    : SkillsLocalization.Get("install_success") + "\n" + result.message;
+                EditorUtility.DisplayDialog("Success", msg, "OK");
             }
             else
             {
-                string errorTitle = "Error";
-                string errorMsg = isUpdate 
-                    ? string.Format(L("update_failed"), result.message) 
-                    : string.Format(L("install_failed"), result.message);
-                EditorUtility.DisplayDialog(errorTitle, errorMsg, "OK");
+                string errMsg = isUpdate
+                    ? string.Format(SkillsLocalization.Get("update_failed"), result.message)
+                    : string.Format(SkillsLocalization.Get("install_failed"), result.message);
+                EditorUtility.DisplayDialog("Error", errMsg, "OK");
             }
-
-            // Refresh UI list state
             RebuildAgentsList();
         }
 
-        private void OnUninstallClick(AgentConfig cfg, bool isGlobal)
+        private void OnUninstallClick(AgentConfig cfg, bool projInstalled, bool globInstalled)
         {
-            string scopeText = isGlobal ? " (Global)" : " (Project)";
-            string confirmMsg = string.Format(L("uninstall_confirm"), cfg.name + scopeText);
+            // Pick scope to uninstall:
+            // - both installed → ask which
+            // - only one installed → that one
+            bool? targetGlobal = null;
 
-            if (EditorUtility.DisplayDialog(L("uninstall"), confirmMsg, "OK", "Cancel"))
+            if (projInstalled && globInstalled)
             {
-                var result = cfg.uninstallFunc(isGlobal);
-                if (result.success)
-                {
-                    EditorUtility.DisplayDialog("Success", L("uninstall_success"), "OK");
-                }
-                else
-                {
-                    EditorUtility.DisplayDialog("Error", string.Format(L("uninstall_failed"), result.message), "OK");
-                }
+                int choice = EditorUtility.DisplayDialogComplex(
+                    SkillsLocalization.Get("uninstall"),
+                    string.Format(SkillsLocalization.Get("uninstall_confirm"), cfg.nameDisplay),
+                    SkillsLocalization.Get("agent_install_project"),
+                    "Cancel",
+                    SkillsLocalization.Get("agent_install_global"));
 
-                // Refresh UI list state
-                RebuildAgentsList();
+                if (choice == 1) return;            // Cancel
+                targetGlobal = (choice == 2);       // 0 = project, 2 = global
             }
+            else if (projInstalled) targetGlobal = false;
+            else if (globInstalled) targetGlobal = true;
+            else return;
+
+            string scopeText = targetGlobal.Value ? " (Global)" : " (Project)";
+            if (!EditorUtility.DisplayDialog(
+                SkillsLocalization.Get("uninstall"),
+                string.Format(SkillsLocalization.Get("uninstall_confirm"), cfg.nameDisplay + scopeText),
+                "OK", "Cancel"))
+                return;
+
+            var result = cfg.uninstallFunc(targetGlobal.Value);
+            if (result.success)
+                EditorUtility.DisplayDialog("Success", SkillsLocalization.Get("uninstall_success"), "OK");
+            else
+                EditorUtility.DisplayDialog("Error",
+                    string.Format(SkillsLocalization.Get("uninstall_failed"), result.message), "OK");
+
+            RebuildAgentsList();
+        }
+
+        private void InstallCustom()
+        {
+            if (string.IsNullOrEmpty(_customPath))
+            {
+                string msg = SkillsLocalization.Current == SkillsLocalization.Language.Chinese
+                    ? "路径不能为空" : "Path cannot be empty";
+                EditorUtility.DisplayDialog("Error", msg, "OK");
+                return;
+            }
+            var result = SkillInstaller.InstallCustom(_customPath, _customName);
+            if (result.success)
+                EditorUtility.DisplayDialog("Success", SkillsLocalization.Get("install_success"), "OK");
+            else
+                EditorUtility.DisplayDialog("Error",
+                    string.Format(SkillsLocalization.Get("install_failed"), result.message), "OK");
         }
 
         public void RefreshLocalization()
         {
-            if (_configTitle != null) _configTitle.text = L("skill_config");
-
-            // Custom section
-            if (_customTitle != null) _customTitle.text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "自定义安装位置" : "Custom Install Location";
-            if (_customPathLabel != null) _customPathLabel.text = L("path") + ":";
-            if (_customAgentLabel != null) _customAgentLabel.text = "Agent:";
-            if (_customInstallBtn != null) _customInstallBtn.text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "安装 / 更新" : "Install / Update";
-
-            // Help text box
             if (_helpBox != null)
             {
                 _helpBox.text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese
                     ? "项目安装：将 Skill 安装到当前 Unity 项目目录\n全局安装：将 Skill 安装到用户目录，所有项目可用\n\n注意：Antigravity 和 Codex 工作区都使用 .agents/skills，安装一次即两边可用"
-                    : "Project Install: Install skill to current Unity project\nGlobal Install: Install skill to user folder, available for all projects\n\nNote: Antigravity and Codex both use .agents/skills in workspace mode — install once works for both.";
+                    : "Project Install: install skill to current Unity project\nGlobal Install: install skill to user folder, available to all projects\n\nNote: Antigravity and Codex both use .agents/skills in workspace mode — install once works for both.";
             }
-
-            // Rebuild the whole agent sections to refresh dynamic labels
             RebuildAgentsList();
         }
-
-        private string L(string key) => SkillsLocalization.Get(key);
     }
 }

@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
 
 namespace UnitySkills
 {
+    /// <summary>
+    /// Skills Tab — master-detail.
+    /// Left:  search + refresh/validate + category foldouts + per-skill row.
+    /// Right: selected skill detail + JSON param editor + execute/dryRun + result.
+    /// </summary>
     public class SkillsTabController
     {
         private const string TabUxmlPath = "Packages/com.besty.unity-skills/Editor/UI/Tabs/SkillsTab.uxml";
@@ -14,64 +20,97 @@ namespace UnitySkills
         private readonly VisualElement _root;
         private readonly UnitySkillsWindow _window;
 
-        // UI references
-        private Label _skillsTitle;
-        private Button _refreshBtn;
-        private Button _validateBtn;
-        private Label _totalSkillsLabel;
-        private VisualElement _skillsContainer;
+        // Left pane
+        private TextField     _searchField;
+        private Button        _refreshBtn;
+        private Button        _validateBtn;
+        private Label         _countBar;
+        private VisualElement _container;
+
+        // Right pane
+        private Label         _emptyLabel;
+        private VisualElement _detailContent;
+        private Label         _skillTitle;
+        private VisualElement _skillMeta;
+        private Label         _skillDesc;
+        private Label         _paramsLabel;
+        private TextField     _paramsField;
+        private Button        _execBtn;
+        private Button        _dryRunBtn;
+        private Button        _clearBtn;
+        private Label         _resultLabel;
+        private TextField     _resultField;
+
+        private string _selectedSkillName;
+        private string _filterText = "";
 
         public SkillsTabController(VisualElement root, UnitySkillsWindow window)
         {
             _root = root;
             _window = window;
 
-            // Load tab UXML and append to root
             var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabUxmlPath);
-            if (uxml != null)
+            if (uxml == null)
             {
-                uxml.CloneTree(_root);
-            }
-            else
-            {
-                Debug.LogError($"[UnitySkills] Failed to load SkillsTab UXML at path: {TabUxmlPath}");
+                Debug.LogError($"[UnitySkills] Failed to load SkillsTab UXML: {TabUxmlPath}");
                 return;
             }
+            uxml.CloneTree(_root);
 
             CacheUiReferences();
-            Initialize();
+            BindEvents();
+            RebuildList();
+            ShowEmpty();
         }
 
         private void CacheUiReferences()
         {
-            _skillsTitle = _root.Q<Label>("skills-title");
-            _refreshBtn = _root.Q<Button>("refresh-btn");
-            _validateBtn = _root.Q<Button>("validate-btn");
-            _totalSkillsLabel = _root.Q<Label>("total-skills-label");
-            _skillsContainer = _root.Q<VisualElement>("skills-container");
+            _searchField  = _root.Q<TextField>("search-field");
+            _refreshBtn   = _root.Q<Button>("refresh-btn");
+            _validateBtn  = _root.Q<Button>("validate-btn");
+            _countBar     = _root.Q<Label>("skills-count-bar");
+            _container    = _root.Q<VisualElement>("skills-container");
+
+            _emptyLabel    = _root.Q<Label>("detail-empty");
+            _detailContent = _root.Q<VisualElement>("detail-content");
+            _skillTitle    = _root.Q<Label>("skill-title");
+            _skillMeta     = _root.Q<VisualElement>("skill-meta");
+            _skillDesc     = _root.Q<Label>("skill-desc");
+            _paramsLabel   = _root.Q<Label>("detail-params-label");
+            _paramsField   = _root.Q<TextField>("detail-params-field");
+            _execBtn       = _root.Q<Button>("detail-execute-btn");
+            _dryRunBtn     = _root.Q<Button>("detail-dryrun-btn");
+            _clearBtn      = _root.Q<Button>("detail-clear-btn");
+            _resultLabel   = _root.Q<Label>("detail-result-label");
+            _resultField   = _root.Q<TextField>("detail-result-field");
         }
 
-        private void Initialize()
+        private void BindEvents()
         {
-            // Bind refresh button
             if (_refreshBtn != null)
-            {
                 _refreshBtn.clicked += () =>
                 {
                     _window.RefreshSkillsList();
                     SkillRouter.Refresh();
-                    RebuildSkillsList();
+                    RebuildList();
                 };
-            }
 
-            // Bind validate button
-            if (_validateBtn != null)
+            if (_validateBtn != null) _validateBtn.clicked += ValidateSkills;
+
+            if (_searchField != null)
+                _searchField.RegisterValueChangedCallback(evt =>
+                {
+                    _filterText = (evt.newValue ?? "").Trim().ToLowerInvariant();
+                    RebuildList();
+                });
+
+            if (_execBtn   != null) _execBtn.clicked   += () => Execute(dryRun: false);
+            if (_dryRunBtn != null) _dryRunBtn.clicked += () => Execute(dryRun: true);
+            if (_clearBtn  != null) _clearBtn.clicked  += () =>
             {
-                _validateBtn.clicked += ValidateSkills;
-            }
-
-            // Initial build of skills list
-            RebuildSkillsList();
+                if (_paramsField != null) _paramsField.value = "";
+                if (_resultField != null) _resultField.value = "";
+            };
         }
 
         private void ValidateSkills()
@@ -79,123 +118,281 @@ namespace UnitySkills
             var issues = SkillRouter.ValidateMetadata();
             if (issues.Count == 0)
             {
-                SkillsLogger.Log(L("metadata_validation_passed"));
+                SkillsLogger.Log(SkillsLocalization.Get("metadata_validation_passed"));
             }
             else
             {
-                SkillsLogger.Log(string.Format(L("metadata_validation_found"), issues.Count));
+                SkillsLogger.Log(string.Format(SkillsLocalization.Get("metadata_validation_found"), issues.Count));
                 foreach (var msg in issues)
                 {
-                    if (msg.StartsWith("[ERROR]"))
-                        Debug.LogError($"[UnitySkills] {msg}");
-                    else
-                        Debug.LogWarning($"[UnitySkills] {msg}");
+                    if (msg.StartsWith("[ERROR]")) Debug.LogError($"[UnitySkills] {msg}");
+                    else                            Debug.LogWarning($"[UnitySkills] {msg}");
                 }
             }
         }
 
-        private void RebuildSkillsList()
+        private void RebuildList()
         {
-            if (_skillsContainer == null) return;
-            _skillsContainer.Clear();
+            if (_container == null) return;
+            _container.Clear();
 
-            var skillsDict = _window.SkillsByCategory;
-            if (skillsDict == null) return;
+            var dict = _window.SkillsByCategory;
+            if (dict == null) return;
 
-            // Update total label
-            int totalSkills = skillsDict.Values.Sum(list => list.Count);
-            if (_totalSkillsLabel != null)
+            int totalShown = 0;
+            int categoriesShown = 0;
+
+            foreach (var kvp in dict.OrderBy(k => k.Key))
             {
-                _totalSkillsLabel.text = string.Format(L("total_skills"), totalSkills, skillsDict.Count);
+                var filtered = kvp.Value.Where(MatchesFilter).ToList();
+                if (filtered.Count == 0) continue;
+
+                categoriesShown++;
+                totalShown += filtered.Count;
+
+                BuildCategory(kvp.Key, filtered);
             }
 
-            // Build categorized cards
-            foreach (var kvp in skillsDict.OrderBy(k => k.Key))
+            if (_countBar != null)
             {
-                var categoryCard = new VisualElement();
-                categoryCard.AddToClassList("card");
+                _countBar.text = string.Format(
+                    SkillsLocalization.Get("skills_count_format"),
+                    totalShown, categoriesShown);
+            }
+        }
 
-                // Create Foldout
-                var foldout = new Foldout();
-                // Set bold foldout title with skills count
-                foldout.text = $"{kvp.Key} ({kvp.Value.Count})";
-                foldout.style.fontSize = 12;
-                foldout.style.unityFontStyleAndWeight = FontStyle.Bold;
+        private bool MatchesFilter(UnitySkillsWindow.SkillInfo skill)
+        {
+            if (string.IsNullOrEmpty(_filterText)) return true;
+            if (!string.IsNullOrEmpty(skill.Name) &&
+                skill.Name.ToLowerInvariant().Contains(_filterText)) return true;
+            if (!string.IsNullOrEmpty(skill.Description) &&
+                skill.Description.ToLowerInvariant().Contains(_filterText)) return true;
+            return false;
+        }
 
-                // Bind foldout value persistence
-                string foldoutPrefKey = $"UnitySkills_Foldout_{kvp.Key}";
-                foldout.value = EditorPrefs.GetBool(foldoutPrefKey, false);
-                foldout.RegisterValueChangedCallback(evt =>
+        private void BuildCategory(string categoryName, List<UnitySkillsWindow.SkillInfo> skills)
+        {
+            string foldKey = $"UnitySkills_Foldout_{categoryName}";
+            bool collapsed = !EditorPrefs.GetBool(foldKey, false);
+
+            // Header
+            var header = new VisualElement();
+            header.AddToClassList("category-header");
+            header.style.flexDirection = FlexDirection.Row;
+            header.style.alignItems = Align.Center;
+
+            var chevron = new Label(collapsed ? "▶" : "▼");
+            chevron.AddToClassList("chevron");
+            header.Add(chevron);
+
+            var nameLabel = new Label(categoryName);
+            nameLabel.style.flexGrow = 1;
+            header.Add(nameLabel);
+
+            var countLabel = new Label(skills.Count.ToString());
+            countLabel.AddToClassList("cat-count");
+            header.Add(countLabel);
+
+            // Body
+            var body = new VisualElement();
+            body.style.display = collapsed ? DisplayStyle.None : DisplayStyle.Flex;
+
+            foreach (var skill in skills)
+            {
+                body.Add(BuildSkillRow(skill));
+            }
+
+            header.RegisterCallback<ClickEvent>(_ =>
+            {
+                bool nowCollapsed = body.style.display == DisplayStyle.Flex;
+                body.style.display = nowCollapsed ? DisplayStyle.None : DisplayStyle.Flex;
+                chevron.text = nowCollapsed ? "▶" : "▼";
+                EditorPrefs.SetBool(foldKey, !nowCollapsed);
+            });
+
+            _container.Add(header);
+            _container.Add(body);
+        }
+
+        private VisualElement BuildSkillRow(UnitySkillsWindow.SkillInfo skill)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("skill-row");
+            row.userData = skill;
+
+            var nameLabel = new Label(skill.Name);
+            nameLabel.AddToClassList("skill-row__name");
+            row.Add(nameLabel);
+
+            if (IsHighRisk(skill))
+            {
+                var badge = new Label(SkillsLocalization.Get("skills_tag_danger"));
+                badge.AddToClassList("risk-badge");
+                row.Add(badge);
+            }
+
+            if (skill.Name == _selectedSkillName) row.AddToClassList("selected");
+
+            row.RegisterCallback<ClickEvent>(_ => OnSkillSelected(skill));
+            return row;
+        }
+
+        private bool IsHighRisk(UnitySkillsWindow.SkillInfo skill)
+        {
+            var attr = skill.Method?.GetCustomAttribute<UnitySkillAttribute>();
+            if (attr == null) return false;
+            if (attr.RiskLevel == "high") return true;
+            if ((attr.Operation & SkillOperation.Delete) != 0) return true;
+            return false;
+        }
+
+        private void OnSkillSelected(UnitySkillsWindow.SkillInfo skill)
+        {
+            _selectedSkillName = skill.Name;
+
+            // Update visual selection
+            foreach (var r in _root.Query<VisualElement>(className: "skill-row").ToList())
+            {
+                if (r.userData is UnitySkillsWindow.SkillInfo si && si.Name == skill.Name)
+                    r.AddToClassList("selected");
+                else
+                    r.RemoveFromClassList("selected");
+            }
+
+            PopulateDetail(skill, _window.BuildDefaultParams(skill.Method));
+        }
+
+        /// <summary>External API — called by main window for SelectTestSkill.</summary>
+        public void SelectSkillByName(string skillName, string defaultParams)
+        {
+            var skill = FindSkill(skillName);
+            if (skill == null) return;
+            _selectedSkillName = skillName;
+            // Refresh row highlight in case category is collapsed/filter hides it
+            RebuildList();
+            PopulateDetail(skill, defaultParams);
+        }
+
+        private UnitySkillsWindow.SkillInfo FindSkill(string name)
+        {
+            var dict = _window.SkillsByCategory;
+            if (dict == null) return null;
+            foreach (var list in dict.Values)
+            foreach (var s in list)
+                if (s.Name == name) return s;
+            return null;
+        }
+
+        private void PopulateDetail(UnitySkillsWindow.SkillInfo skill, string defaultParams)
+        {
+            if (_emptyLabel != null)    _emptyLabel.style.display    = DisplayStyle.None;
+            if (_detailContent != null) _detailContent.style.display = DisplayStyle.Flex;
+
+            if (_skillTitle != null) _skillTitle.text = skill.Name;
+
+            // Description: prefer localized description by skill name key
+            string desc = SkillsLocalization.Get(skill.Name);
+            if (desc == skill.Name) desc = skill.Description;
+            if (_skillDesc != null) _skillDesc.text = desc ?? "";
+
+            // Meta tags
+            if (_skillMeta != null)
+            {
+                _skillMeta.Clear();
+                var attr = skill.Method?.GetCustomAttribute<UnitySkillAttribute>();
+                if (attr != null)
                 {
-                    EditorPrefs.SetBool(foldoutPrefKey, evt.newValue);
-                });
+                    var catTag = new Label(attr.Category.ToString());
+                    catTag.AddToClassList("tag");
+                    _skillMeta.Add(catTag);
 
-                // Build category inner skills list
-                foreach (var skill in kvp.Value)
-                {
-                    var skillItem = new VisualElement();
-                    skillItem.style.marginBottom = 6;
-                    skillItem.style.marginTop = 2;
-
-                    // Skill header (Name + Use button)
-                    var skillHeader = new VisualElement();
-                    skillHeader.AddToClassList("horizontal-layout");
-                    skillHeader.style.justifyContent = Justify.SpaceBetween;
-
-                    var skillNameLabel = new Label(skill.Name);
-                    skillNameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-                    skillNameLabel.style.fontSize = 11;
-                    skillNameLabel.style.color = new Color(0.9f, 0.9f, 0.9f);
-
-                    var useBtn = new Button(() =>
+                    if (IsHighRisk(skill))
                     {
-                        string defaultJson = _window.BuildDefaultParams(skill.Method);
-                        _window.SelectTestSkill(skill.Name, defaultJson);
-                    });
-                    useBtn.text = L("use");
-                    useBtn.AddToClassList("btn-primary");
-                    useBtn.AddToClassList("btn-mini");
-                    useBtn.style.width = 45;
-                    useBtn.style.marginRight = 0;
-
-                    skillHeader.Add(skillNameLabel);
-                    skillHeader.Add(useBtn);
-
-                    // Skill description
-                    var skillDescLabel = new Label();
-                    skillDescLabel.AddToClassList("muted-label");
-                    skillDescLabel.style.marginLeft = 6;
-                    skillDescLabel.style.marginTop = 2;
-                    skillDescLabel.style.whiteSpace = WhiteSpace.Normal;
-
-                    var desc = SkillsLocalization.Get(skill.Name);
-                    if (desc == skill.Name) desc = skill.Description;
-                    skillDescLabel.text = desc;
-
-                    skillItem.Add(skillHeader);
-                    if (!string.IsNullOrEmpty(desc))
-                    {
-                        skillItem.Add(skillDescLabel);
+                        var risk = new Label(SkillsLocalization.Get("skills_tag_danger"));
+                        risk.AddToClassList("tag");
+                        risk.AddToClassList("tag-danger");
+                        _skillMeta.Add(risk);
                     }
-
-                    foldout.Add(skillItem);
                 }
-
-                categoryCard.Add(foldout);
-                _skillsContainer.Add(categoryCard);
             }
+
+            if (_paramsField != null) _paramsField.value = defaultParams ?? "{}";
+            if (_resultField != null) _resultField.value = "";
+            ClearResultError();
+
+            // Enable/disable DryRun based on metadata
+            if (_dryRunBtn != null)
+            {
+                var attr = skill.Method?.GetCustomAttribute<UnitySkillAttribute>();
+                _dryRunBtn.SetEnabled(attr == null || attr.SupportsDryRun);
+            }
+        }
+
+        private void ShowEmpty()
+        {
+            if (_emptyLabel != null)    _emptyLabel.style.display    = DisplayStyle.Flex;
+            if (_detailContent != null) _detailContent.style.display = DisplayStyle.None;
+        }
+
+        private void Execute(bool dryRun)
+        {
+            if (string.IsNullOrEmpty(_selectedSkillName) || _paramsField == null) return;
+
+            string json = _paramsField.value ?? "{}";
+
+            if (dryRun)
+            {
+                // Inject "dryRun": true into the JSON payload (simple heuristic).
+                json = InjectDryRun(json);
+            }
+
+            string result = SkillRouter.Execute(_selectedSkillName, json);
+            if (_resultField != null) _resultField.value = result ?? "";
+
+            // Heuristic error detection — color the result block
+            ClearResultError();
+            if (!string.IsNullOrEmpty(result) &&
+                (result.Contains("\"ok\": false") || result.Contains("\"error\"")))
+            {
+                if (_resultField != null) _resultField.AddToClassList("error");
+            }
+        }
+
+        private void ClearResultError()
+        {
+            if (_resultField != null) _resultField.RemoveFromClassList("error");
+        }
+
+        private static string InjectDryRun(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return "{ \"dryRun\": true }";
+            var trimmed = json.TrimEnd();
+            int idx = trimmed.LastIndexOf('}');
+            if (idx < 0) return json; // malformed — caller will get a clear error from router
+
+            string body = trimmed.Substring(0, idx).TrimEnd();
+            bool needsComma = body.Length > 0 && body[body.Length - 1] != '{';
+            string sep = needsComma ? "," : "";
+            return body + sep + "\n  \"dryRun\": true\n}";
         }
 
         public void RefreshLocalization()
         {
-            if (_skillsTitle != null) _skillsTitle.text = L("available_skills");
-            if (_refreshBtn != null) _refreshBtn.text = L("refresh");
-            if (_validateBtn != null) _validateBtn.text = L("validate");
+            if (_searchField != null)
+            {
+                // TextField has no native placeholder; use tooltip
+                _searchField.tooltip = SkillsLocalization.Get("skills_search_placeholder");
+            }
+            if (_paramsLabel != null) _paramsLabel.text = SkillsLocalization.Get("skills_detail_params_label");
+            if (_execBtn != null)     _execBtn.text     = SkillsLocalization.Get("skills_detail_execute");
+            if (_dryRunBtn != null)   _dryRunBtn.text   = SkillsLocalization.Get("skills_detail_dryrun");
+            if (_clearBtn != null)    _clearBtn.text    = SkillsLocalization.Get("skills_detail_clear");
+            if (_resultLabel != null) _resultLabel.text = SkillsLocalization.Get("skills_detail_result_label");
+            if (_emptyLabel != null)  _emptyLabel.text  = SkillsLocalization.Get("skills_detail_empty");
 
-            // Rebuild lists to refresh all dynamically translated content
-            RebuildSkillsList();
+            // Rebuild list to refresh badge texts in active language
+            RebuildList();
         }
-
-        private string L(string key) => SkillsLocalization.Get(key);
     }
 }

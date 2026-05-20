@@ -8,219 +8,183 @@ using System.Collections.Generic;
 namespace UnitySkills
 {
     /// <summary>
-    /// Unity Editor Window for UnitySkills REST API control.
-    /// Re-architected with UI Toolkit (UXML + USS) for Unity 2022.3+.
+    /// Unity Editor Window — UnitySkills v2 layout.
+    /// Topbar (server status + URL + toggle + settings) — persistent.
+    /// 3 tabs: Skills / AI Config / History.
+    /// Footer: version + live stats pill + segmented language switch.
+    /// Settings panel: slide-in drawer from the right.
     /// </summary>
     public class UnitySkillsWindow : EditorWindow
     {
         private const string UxmlPath = "Packages/com.besty.unity-skills/Editor/UI/UnitySkillsWindow.uxml";
-        private const string UssPath = "Packages/com.besty.unity-skills/Editor/UI/UnitySkillsWindow.uss";
+        private const string UssPath  = "Packages/com.besty.unity-skills/Editor/UI/UnitySkillsWindow.uss";
 
-        [SerializeField]
-        private int _selectedTab = 0;
+        [SerializeField] private int _selectedTab = 0;
 
-        private Dictionary<string, List<SkillInfo>> _skillsByCategory;
-        private ServerTabController _serverController;
-        private SkillsTabController _skillsController;
-        private AIConfigTabController _configController;
-        private HistoryTabController _historyController;
-
-        private VisualElement[] _tabContents;
-        private Button[] _tabButtons;
-        private VisualElement[] _tabUnderlines;
-        private Button _langToggleBtn;
-
+        // ----- Skill catalog (unchanged data contract — Controllers consume it) -----
         public class SkillInfo
         {
             public string Name;
             public string Description;
             public MethodInfo Method;
         }
-
+        private Dictionary<string, List<SkillInfo>> _skillsByCategory;
         public Dictionary<string, List<SkillInfo>> SkillsByCategory => _skillsByCategory;
+
+        // ----- Sub-controllers -----
+        private TopbarController         _topbar;
+        private FooterController         _footer;
+        private SettingsDrawerController _drawer;
+        private SkillsTabController      _skillsController;
+        private AIConfigTabController    _configController;
+        private HistoryTabController     _historyController;
+
+        // ----- Tab strip -----
+        private VisualElement[] _tabContents;
+        private Button[]        _tabButtons;
+        private VisualElement[] _tabUnderlines;
 
         [MenuItem("Window/UnitySkills")]
         public static void ShowWindow()
         {
             var window = GetWindow<UnitySkillsWindow>("UnitySkills");
-            window.minSize = new Vector2(300, 300);
+            window.minSize = new Vector2(420, 480);
         }
 
         private void OnEnable()
         {
-            // Initial load of skills list
             RefreshSkillsList();
         }
 
         public void CreateGUI()
         {
-            // Load and apply StyleSheet (USS) first, so variables in UXML inline styles can be resolved during cloning
+            // Load USS first so :root variables resolve when UXML clones
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
-            if (uss != null)
-            {
-                rootVisualElement.styleSheets.Add(uss);
-            }
-            else
-            {
-                Debug.LogWarning($"[UnitySkills] Failed to load USS at path: {UssPath}");
-            }
+            if (uss != null) rootVisualElement.styleSheets.Add(uss);
+            else Debug.LogWarning($"[UnitySkills] Failed to load USS: {UssPath}");
 
-            // Load and clone VisualTreeAsset (UXML)
             var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
             if (uxml == null)
             {
-                Debug.LogError($"[UnitySkills] Failed to load UXML at path: {UxmlPath}");
+                Debug.LogError($"[UnitySkills] Failed to load UXML: {UxmlPath}");
                 return;
             }
             uxml.CloneTree(rootVisualElement);
 
-            // Cache UI references
-            CacheUiReferences();
+            CacheTabReferences();
 
-            // Initialize Tab controllers
-            _serverController = new ServerTabController(_tabContents[0], this);
-            _skillsController = new SkillsTabController(_tabContents[1], this);
-            _configController = new AIConfigTabController(_tabContents[2], this);
-            _historyController = new HistoryTabController(_tabContents[3], this);
+            // --- Sub-controllers ---
+            _topbar  = new TopbarController(rootVisualElement, this);
+            _footer  = new FooterController(rootVisualElement, this);
+            _drawer  = new SettingsDrawerController(rootVisualElement, this);
 
-            // Setup Tab Buttons click events
+            _skillsController  = new SkillsTabController(_tabContents[0], this);
+            _configController  = new AIConfigTabController(_tabContents[1], this);
+            _historyController = new HistoryTabController(_tabContents[2], this);
+
+            // --- Tab clicks ---
             for (int i = 0; i < _tabButtons.Length; i++)
             {
-                int index = i;
-                _tabButtons[i].clicked += () => SwitchTab(index);
+                int idx = i;
+                if (_tabButtons[i] != null)
+                    _tabButtons[i].clicked += () => SwitchTab(idx);
             }
 
-            // Setup Language Toggle Button click event
-            if (_langToggleBtn != null)
-            {
-                _langToggleBtn.clicked += ToggleLanguage;
-            }
-
-            // Switch to preserved tab
             SwitchTab(_selectedTab);
-
-            // Refresh text based on active locale
             RefreshLocalization();
 
-            // Schedule live server monitoring (500ms intervals)
+            // Live update tick — 500ms (server stats, status)
             rootVisualElement.schedule.Execute(OnLiveDataUpdate).Every(500).StartingIn(0);
         }
 
-        private void CacheUiReferences()
+        private void CacheTabReferences()
         {
-            _tabButtons = new Button[4];
-            _tabButtons[0] = rootVisualElement.Q<Button>("tab-btn-0");
-            _tabButtons[1] = rootVisualElement.Q<Button>("tab-btn-1");
-            _tabButtons[2] = rootVisualElement.Q<Button>("tab-btn-2");
-            _tabButtons[3] = rootVisualElement.Q<Button>("tab-btn-3");
-
-            _tabContents = new VisualElement[4];
-            _tabContents[0] = rootVisualElement.Q<VisualElement>("tab-content-0");
-            _tabContents[1] = rootVisualElement.Q<VisualElement>("tab-content-1");
-            _tabContents[2] = rootVisualElement.Q<VisualElement>("tab-content-2");
-            _tabContents[3] = rootVisualElement.Q<VisualElement>("tab-content-3");
-
-            _tabUnderlines = new VisualElement[4];
-            _tabUnderlines[0] = rootVisualElement.Q<VisualElement>("tab-underline-0");
-            _tabUnderlines[1] = rootVisualElement.Q<VisualElement>("tab-underline-1");
-            _tabUnderlines[2] = rootVisualElement.Q<VisualElement>("tab-underline-2");
-            _tabUnderlines[3] = rootVisualElement.Q<VisualElement>("tab-underline-3");
-
-            _langToggleBtn = rootVisualElement.Q<Button>("lang-toggle");
+            _tabButtons    = new Button[3];
+            _tabContents   = new VisualElement[3];
+            _tabUnderlines = new VisualElement[3];
+            for (int i = 0; i < 3; i++)
+            {
+                _tabButtons[i]    = rootVisualElement.Q<Button>($"tab-btn-{i}");
+                _tabContents[i]   = rootVisualElement.Q<VisualElement>($"tab-content-{i}");
+                _tabUnderlines[i] = rootVisualElement.Q<VisualElement>($"tab-underline-{i}");
+            }
         }
 
         private void SwitchTab(int index)
         {
+            if (index < 0 || index >= _tabContents.Length) return;
             _selectedTab = index;
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < _tabContents.Length; i++)
             {
                 if (_tabContents[i] != null)
-                {
                     _tabContents[i].style.display = (i == index) ? DisplayStyle.Flex : DisplayStyle.None;
-                }
 
                 if (_tabButtons[i] != null)
                 {
-                    if (i == index)
-                    {
-                        _tabButtons[i].AddToClassList("tab-active");
-                    }
-                    else
-                    {
-                        _tabButtons[i].RemoveFromClassList("tab-active");
-                    }
+                    if (i == index) _tabButtons[i].AddToClassList("tab-active");
+                    else            _tabButtons[i].RemoveFromClassList("tab-active");
                 }
 
-                // Underline is an independent VisualElement (sibling of the Button
-                // inside .tab-wrap), not the Button's own border. Toggling its class
-                // applies immediately because no built-in Unity Button pseudo-style
-                // competes for the property.
-                if (_tabUnderlines != null && _tabUnderlines[i] != null)
+                if (_tabUnderlines[i] != null)
                 {
-                    if (i == index)
-                    {
-                        _tabUnderlines[i].AddToClassList("active");
-                    }
-                    else
-                    {
-                        _tabUnderlines[i].RemoveFromClassList("active");
-                    }
+                    if (i == index) _tabUnderlines[i].AddToClassList("active");
+                    else            _tabUnderlines[i].RemoveFromClassList("active");
                 }
             }
 
-            // Drop focus from the clicked tab button so its :focus pseudo-state
-            // doesn't keep the idle text color applied over .tab-active.
-            if (index >= 0 && index < _tabButtons.Length && _tabButtons[index] != null)
-            {
-                _tabButtons[index].Blur();
-            }
+            if (_tabButtons[index] != null) _tabButtons[index].Blur();
         }
 
+        /// <summary>
+        /// Called when user clicks a skill in Skills Tab — now stays within the
+        /// Skills tab (master-detail) instead of jumping to a separate "Test" tab.
+        /// Tab switch ensured here so external callers (legacy code paths) still work.
+        /// </summary>
         public void SelectTestSkill(string skillName, string defaultParams)
         {
-            _serverController?.SetTestSkill(skillName, defaultParams);
             SwitchTab(0);
+            _skillsController?.SelectSkillByName(skillName, defaultParams);
         }
 
-        private void ToggleLanguage()
-        {
-            SkillsLocalization.Current = SkillsLocalization.Current == SkillsLocalization.Language.English
-                ? SkillsLocalization.Language.Chinese
-                : SkillsLocalization.Language.English;
+        public void OpenSettings()  => _drawer?.Open();
+        public void CloseSettings() => _drawer?.Close();
 
+        // ----- Live tick — fanned out to controllers that care -----
+        private void OnLiveDataUpdate()
+        {
+            _topbar?.UpdateLiveData();
+            _footer?.UpdateLiveData();
+        }
+
+        // ----- Language switch (called by FooterController) -----
+        public void SetLanguage(SkillsLocalization.Language lang)
+        {
+            if (SkillsLocalization.Current == lang) return;
+            SkillsLocalization.Current = lang;
             RefreshLocalization();
         }
 
-        private void RefreshLocalization()
+        public void RefreshLocalization()
         {
-            // Refresh main window buttons
-            if (_tabButtons[0] != null) _tabButtons[0].text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "服务器" : "Server";
-            if (_tabButtons[1] != null) _tabButtons[1].text = "Skills";
-            if (_tabButtons[2] != null) _tabButtons[2].text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "AI配置" : "AI Config";
-            if (_tabButtons[3] != null) _tabButtons[3].text = SkillsLocalization.Current == SkillsLocalization.Language.Chinese ? "历史记录" : "History";
+            // Main tabs
+            if (_tabButtons[0] != null) _tabButtons[0].text = SkillsLocalization.Get("tab_skills");
+            if (_tabButtons[1] != null) _tabButtons[1].text = SkillsLocalization.Get("tab_ai_config");
+            if (_tabButtons[2] != null) _tabButtons[2].text = SkillsLocalization.Get("tab_history");
 
-            if (_langToggleBtn != null)
-            {
-                _langToggleBtn.text = SkillsLocalization.Current == SkillsLocalization.Language.English ? "EN / 中文" : "中文 / EN";
-            }
-
-            // Propagate language refresh to child controllers
-            _serverController?.RefreshLocalization();
+            _topbar?.RefreshLocalization();
+            _footer?.RefreshLocalization();
+            _drawer?.RefreshLocalization();
             _skillsController?.RefreshLocalization();
             _configController?.RefreshLocalization();
             _historyController?.RefreshLocalization();
         }
 
-        private void OnLiveDataUpdate()
-        {
-            _serverController?.UpdateLiveData();
-        }
+        // ===== Skill catalog (preserved API for controllers) =====
 
         public void RefreshSkillsList()
         {
             _skillsByCategory = new Dictionary<string, List<SkillInfo>>();
-
             var allTypes = SkillsCommon.GetAllLoadedTypes();
 
             foreach (var type in allTypes)
@@ -230,19 +194,18 @@ namespace UnitySkills
                     UnitySkillAttribute attr;
                     try { attr = method.GetCustomAttribute<UnitySkillAttribute>(); }
                     catch { continue; }
-                    if (attr != null)
-                    {
-                        var category = type.Name.Replace("Skills", "");
-                        if (!_skillsByCategory.ContainsKey(category))
-                            _skillsByCategory[category] = new List<SkillInfo>();
+                    if (attr == null) continue;
 
-                        _skillsByCategory[category].Add(new SkillInfo
-                        {
-                            Name = attr.Name ?? method.Name,
-                            Description = attr.Description ?? "",
-                            Method = method
-                        });
-                    }
+                    var category = type.Name.Replace("Skills", "");
+                    if (!_skillsByCategory.ContainsKey(category))
+                        _skillsByCategory[category] = new List<SkillInfo>();
+
+                    _skillsByCategory[category].Add(new SkillInfo
+                    {
+                        Name = attr.Name ?? method.Name,
+                        Description = attr.Description ?? "",
+                        Method = method
+                    });
                 }
             }
         }
