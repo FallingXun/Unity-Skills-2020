@@ -71,9 +71,7 @@ namespace UnitySkills
         {
             if (_versionTag != null)
             {
-                // Read package version from package.json — not critical, keep hardcoded
-                // fallback if reading is unsupported
-                _versionTag.text = "v1.8.4";
+                _versionTag.text = "v" + SkillsLogger.Version;
             }
 
             if (_queueLabel != null) _queueLabel.text = SkillsLocalization.Get("footer_queue");

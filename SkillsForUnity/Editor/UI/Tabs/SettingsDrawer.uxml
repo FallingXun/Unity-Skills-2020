@@ -21,6 +21,54 @@
             <ui:VisualElement name="drawer-body" class="drawer-body"
                               style="flex-direction: column;">
 
+                <!-- Permissions group (v1.9 — first group so users see it first) -->
+                <ui:VisualElement name="group-permissions" class="settings-group">
+                    <ui:Label name="group-permissions-title" class="settings-group-title"
+                              text="Permissions" />
+
+                    <ui:VisualElement name="row-operating-mode" class="setting-row"
+                                      style="flex-direction: row; align-items: center; margin-bottom: 4px;">
+                        <ui:Label name="perm-mode-label" class="setting-row__label" text="Operating Mode" />
+                        <ui:DropdownField name="perm-mode-dropdown" class="setting-row__field" />
+                    </ui:VisualElement>
+                    <ui:Label name="perm-mode-hint" class="setting-hint"
+                              style="margin-left: 0; margin-bottom: 6px;" />
+
+                    <ui:VisualElement name="row-panel-approval"
+                                      style="flex-direction: column; display: none;">
+                        <ui:Toggle name="perm-panel-approval-toggle" />
+                        <ui:Label name="perm-panel-approval-hint" class="setting-hint"
+                                  style="margin-left: 18px;" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="perm-pending-section"
+                                      style="flex-direction: column; display: none; margin-top: 4px;">
+                        <ui:Label name="perm-pending-title" class="bold-label"
+                                  style="font-size: 11px; margin-bottom: 4px;" />
+                        <ui:VisualElement name="perm-pending-list"
+                                          style="flex-direction: column;" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="perm-granted-section"
+                                      style="flex-direction: column; display: none; margin-top: 6px;">
+                        <ui:VisualElement style="flex-direction: row; align-items: center; margin-bottom: 4px;">
+                            <ui:Label name="perm-granted-title" class="bold-label"
+                                      style="flex-grow: 1; font-size: 11px;" />
+                            <ui:Button name="perm-revoke-all-btn" class="mini-btn"
+                                       text="Revoke All" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="perm-granted-list"
+                                          style="flex-direction: column;" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="row-audit"
+                                      style="flex-direction: row; margin-top: 8px;">
+                        <ui:Button name="perm-view-audit-btn" class="mini-btn"
+                                   text="View Audit Log"
+                                   style="flex-grow: 1; height: 22px; margin: 0;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
                 <!-- Server group -->
                 <ui:VisualElement name="group-server" class="settings-group">
                     <ui:Label name="group-server-title" class="settings-group-title"

@@ -28,8 +28,31 @@
 
             <ui:Label name="server-status-text" class="server-status-text" text="Stopped" />
 
+            <ui:Button name="perm-mode-badge" class="mini-btn"
+                       tooltip="Click to switch operating mode"
+                       style="height: 22px; margin: 0 4px 0 4px;" />
+
             <ui:Button name="open-settings-btn" class="icon-btn"
                        text="⚙" tooltip="Settings" />
+        </ui:VisualElement>
+
+        <!-- ============================================
+             1b. PENDING APPROVAL BANNER — global cross-tab
+             (Hidden when there are no pending grant requests.
+              Each row exposes Approve / Deny inline so the user
+              doesn't need to open the Settings drawer.)
+             ============================================ -->
+        <ui:VisualElement name="pending-banner" class="pending-banner"
+                          style="display: none; flex-direction: column; flex-shrink: 0;">
+            <ui:VisualElement class="pending-banner__header"
+                              style="flex-direction: row; align-items: center;">
+                <ui:Label name="pending-banner-title" class="pending-banner__title"
+                          text="Pending approvals" />
+                <ui:VisualElement style="flex-grow: 1;" />
+                <ui:Button name="pending-banner-settings-btn" class="mini-btn"
+                           text="Open Permissions" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pending-banner-list" class="pending-banner__list" />
         </ui:VisualElement>
 
         <!-- ============================================
