@@ -818,6 +818,124 @@ def get_server_status() -> Dict[str, Any]:
         return {'status': 'error', 'reason': str(e)}
 
 
+# ============================================================
+# Permission System (v1.9.0+)
+# ============================================================
+
+def _permission_get(path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """内部辅助：向 /permission/* GET 端点发起请求并返回 JSON。"""
+    client = _get_default_client()
+    qs = f"?{urlencode(params)}" if params else ""
+    response = client._session.get(f"{client.url}{path}{qs}", timeout=client.timeout)
+    response.encoding = 'utf-8'
+    return response.json()
+
+
+def _permission_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """内部辅助：向 /permission/* POST 端点发送 JSON body 并返回响应 JSON。"""
+    client = _get_default_client()
+    json_data = json.dumps(payload, ensure_ascii=False)
+    response = client._session.post(
+        f"{client.url}{path}",
+        data=json_data.encode('utf-8'),
+        headers={'Content-Type': 'application/json; charset=utf-8'},
+        timeout=client.timeout,
+    )
+    response.encoding = 'utf-8'
+    return response.json()
+
+
+def get_permission_status(token: str = None) -> Dict[str, Any]:
+    """获取权限系统状态（当前模式、已授权、待批列表等）。
+
+    返回内容含 ``mode``、``panelApprovalRequired``、``granted``、``forbidden``、
+    ``pending``、``counts``。若传入 ``token``，响应会额外包含 ``focus`` 字段
+    （含 ``approvedByPanel``、``skill`` 等），用于查询特定 grant 请求的状态——
+    Panel 渠道下轮询审批结果时常用。
+
+    Args:
+        token: 可选，传入查询特定 grant 请求状态。
+    """
+    try:
+        params = {'token': token} if token else None
+        return _permission_get('/permission/status', params)
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def grant_permission(skill: str, token: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    """Dialog 渠道用：AI 在对话获用户同意后调用以激活授权。
+
+    ``args`` 必须与原 skill 调用一致（不含 ``_confirm``），服务端会用其重算
+    hash 校验 token-args 绑定，防止 AI 拿一个 token 套到其它 skill 调用上。
+
+    Panel 渠道下调用会返回 ``{ok: False, reason: "GRANT_PENDING_APPROVAL"}``，
+    此时不应重试 grant，应提示用户到 Unity 面板点 Approve，再用
+    ``get_permission_status(token=...)`` 轮询审批结果。
+
+    Args:
+        skill: 待授权的 skill 名。
+        token: 服务端在 ``MODE_RESTRICTED`` 错误响应里发的 ``grantRequestToken``。
+        args: 原 skill 调用参数（dict），不含 ``_confirm``。
+    """
+    try:
+        return _permission_post('/permission/grant',
+                                {'skill': skill, 'token': token, 'args': args})
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def approve_grant(token: str) -> Dict[str, Any]:
+    """Panel 渠道用：面板按钮触发，激活 token 并把 skill 加入 GrantedSkills。
+
+    主要给测试用；生产流程下应由 Unity 面板用户点 [Approve] 触发。
+    """
+    try:
+        return _permission_post('/permission/approve', {'token': token})
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def deny_grant(token: str) -> Dict[str, Any]:
+    """Panel 渠道用：拒绝 grant 请求并清除 token。"""
+    try:
+        return _permission_post('/permission/deny', {'token': token})
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def revoke_permission(skill: str = None, all: bool = False) -> Dict[str, Any]:
+    """撤销单个 skill 或全部授权。``skill`` 与 ``all`` 二选一。
+
+    Args:
+        skill: 待撤销的 skill 名，与 ``all`` 互斥。
+        all: 设为 True 时撤销所有授权（忽略 ``skill`` 参数）。
+    """
+    try:
+        payload: Dict[str, Any] = {'all': True} if all else {'skill': skill}
+        return _permission_post('/permission/revoke', payload)
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def get_audit_log(limit: int = 100) -> List[Dict[str, Any]]:
+    """读取审计日志最近 N 条。
+
+    每条是 dict（来自 jsonl），含 ``ts``、``type``、``skill``、``token`` 等字段。
+    审计日志在所有模式下都会写入，可用于反查 AI 行为合规性。
+
+    请求失败时返回单元素列表 ``[{"status": "error", "error": "..."}]``，
+    便于调用方在不引入额外判空逻辑的前提下感知错误。
+    """
+    try:
+        data = _permission_get('/permission/audit', {'limit': str(limit)})
+        if isinstance(data, dict):
+            return data.get('entries', [])
+        return data if isinstance(data, list) else []
+    except Exception as e:
+        return [{"status": "error", "error": str(e)}]
+
+
 def create_script(name: str, template: str = 'MonoBehaviour', wait_for_compile: bool = True) -> Dict[str, Any]:
     """Create a script and optionally wait for recompilation to settle."""
     result = call_skill('script_create', name=name, template=template)
