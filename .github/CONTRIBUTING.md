@@ -15,7 +15,7 @@ Thank you for contributing to Unity-Skills!
 
 > ⚠️ **Required | 必须完成**
 
-- [ ] Import into Unity 2022.3+ or Unity 6 and verify no errors | 在 Unity 2022.3+ 或 Unity 6 中导入并确认无报错
+- [ ] Import into Unity 2022.3+ - Unity 6+ and verify no errors | 在 Unity 2022.3+ 至 Unity 6+ 中导入并确认无报错
 - [ ] Test Skills work correctly in your AI tool (Claude Code, Cursor, etc.) | 在你的 AI 工具中测试 Skill 能正常使用
 - [ ] Run HTTP server and verify endpoints respond | 启动 HTTP 服务并验证接口响应正常
 
