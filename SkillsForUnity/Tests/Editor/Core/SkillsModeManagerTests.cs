@@ -30,7 +30,7 @@ namespace UnitySkills.Tests.Core
     {
         // Pre-v1.9 EditorPrefs keys that mark an "existing install" (plan section 10
         // / SkillsModeManager.IsExistingInstall). Presence of any of these flips the
-        // default mode from Approval (fresh install) to Bypass (upgrade-compat).
+        // default mode from Auto (fresh install) to Bypass (upgrade-compat).
         private static readonly string[] LegacyInstallKeys =
         {
             "UnitySkills_RequireConfirmation",
@@ -64,7 +64,7 @@ namespace UnitySkills.Tests.Core
         public void SetUp()
         {
             // Force IsExistingInstall() == false so the default mode getter returns
-            // Approval unless a test explicitly opts back into "old install" state.
+            // Auto unless a test explicitly opts back into "old install" state.
             foreach (var k in LegacyInstallKeys) EditorPrefs.DeleteKey(k);
             SkillsModeManager.ResetForTests();
             SkillsAuditLog.ResetForTests();
@@ -131,7 +131,8 @@ namespace UnitySkills.Tests.Core
                 SkillsModeManager.CheckAccess(MakeSkill("reload", mayTriggerReload: true)));
             Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
                 SkillsModeManager.CheckAccess(MakeSkill("high_risk", risk: "high")));
-            // explicit "never in semi" list (e.g. scene_clear)
+            // a former never-list name (scene_clear) — no longer auto-forbidden after the
+            // _explicitNeverList removal, but Bypass allows it like any other skill anyway.
             Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
                 SkillsModeManager.CheckAccess(MakeSkill("scene_clear")));
         }
@@ -311,7 +312,7 @@ namespace UnitySkills.Tests.Core
             Assert.AreEqual(SkillsModeManager.AccessResult.Forbidden,
                 SkillsModeManager.CheckAccess(MakeSkill("delete_thing", op: SkillOperation.Delete)));
             Assert.AreEqual(SkillsModeManager.AccessResult.Forbidden,
-                SkillsModeManager.CheckAccess(MakeSkill("scene_clear")));
+                SkillsModeManager.CheckAccess(MakeSkill("hot_skill", risk: "high")));
         }
 
         // ═════════════════════════════════════════════════════════════════
@@ -389,7 +390,7 @@ namespace UnitySkills.Tests.Core
         [Test]
         public void IsForbiddenInSemi_CoversAllAutoJudgementBranches()
         {
-            // Five flavours that MUST be forbidden in Approval / Auto.
+            // Four flavours that MUST be forbidden in Approval / Auto (purely metadata-driven).
             Assert.IsTrue(SkillsModeManager.IsForbiddenInSemi(
                 MakeSkill("del", op: SkillOperation.Delete)),
                 "SkillOperation.Delete must be forbidden");
@@ -402,9 +403,6 @@ namespace UnitySkills.Tests.Core
             Assert.IsTrue(SkillsModeManager.IsForbiddenInSemi(
                 MakeSkill("hot", risk: "high")),
                 "RiskLevel=\"high\" must be forbidden");
-            Assert.IsTrue(SkillsModeManager.IsForbiddenInSemi(
-                MakeSkill("scene_clear")),
-                "Names in the explicit never list must be forbidden");
 
             // Plain SemiAuto / FullAuto without any flag must NOT be forbidden.
             Assert.IsFalse(SkillsModeManager.IsForbiddenInSemi(
@@ -465,14 +463,14 @@ namespace UnitySkills.Tests.Core
         }
 
         // ═════════════════════════════════════════════════════════════════
-        //  Test matrix #17 — Fresh install (no legacy, no explicit) → Approval
+        //  Test matrix #17 — Fresh install (no legacy, no explicit) → Auto
         // ═════════════════════════════════════════════════════════════════
 
         [Test]
-        public void CurrentMode_FreshInstall_NoKeys_DefaultsToApproval()
+        public void CurrentMode_FreshInstall_NoKeys_DefaultsToAuto()
         {
             // SetUp left zero UnitySkills_* keys behind.
-            Assert.AreEqual(SkillsOperatingMode.Approval, SkillsModeManager.CurrentMode);
+            Assert.AreEqual(SkillsOperatingMode.Auto, SkillsModeManager.CurrentMode);
             Assert.IsFalse(EditorPrefs.HasKey(PrefKeyMode));
         }
 
@@ -519,16 +517,16 @@ namespace UnitySkills.Tests.Core
         {
             SkillsModeManager.CurrentMode = SkillsOperatingMode.Approval;
 
-            // 默认拦截
+            // 默认拦截：RiskLevel="high" 由 metadata 判定为 NeverInSemi
             Assert.AreEqual(SkillsModeManager.AccessResult.Forbidden,
-                SkillsModeManager.CheckAccess(MakeSkill("scene_clear")));
+                SkillsModeManager.CheckAccess(MakeSkill("hot_skill", risk: "high")));
 
-            // 加入 Allowlist 后被放行（即使在 explicit never list 里）
-            Assert.IsTrue(SkillsModeManager.AddToAllowlist("scene_clear"));
+            // 加入 Allowlist 后被放行（Allowlist 优先于 IsForbiddenInSemi）
+            Assert.IsTrue(SkillsModeManager.AddToAllowlist("hot_skill"));
             Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
-                SkillsModeManager.CheckAccess(MakeSkill("scene_clear")));
+                SkillsModeManager.CheckAccess(MakeSkill("hot_skill", risk: "high")));
 
-            // 同样适用于 metadata 判定的高危 skill
+            // 同样适用于 Delete 操作判定的高危 skill
             Assert.IsTrue(SkillsModeManager.AddToAllowlist("delete_thing"));
             Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
                 SkillsModeManager.CheckAccess(MakeSkill("delete_thing", op: SkillOperation.Delete)));

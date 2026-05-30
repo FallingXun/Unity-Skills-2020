@@ -6,7 +6,7 @@ namespace UnitySkills
     /// </summary>
     public enum SkillsOperatingMode
     {
-        /// <summary>默认（新安装）— AI 必须询问用户取得授权后才能执行 FullAuto skill。</summary>
+        /// <summary>AI 必须询问用户取得授权后才能执行 FullAuto skill。注意：这并非出厂默认模式——新装默认 Auto、老装默认 Bypass，由 SkillsModeManager.CurrentMode 决策。</summary>
         Approval,
         /// <summary>AI 自动判断 — FullAuto skill 直接执行（写审计），仅 NeverInSemi 拦截。</summary>
         Auto,

@@ -131,7 +131,7 @@ namespace UnitySkills
         /// <summary>
         /// 权限风险档位（v1.9）。
         /// SemiAuto = 三档模式下均直接执行；FullAuto = Approval 模式下需用户授权。
-        /// 默认 FullAuto 以保证未标注的 skill 在新默认 Approval 模式下走授权流程。
+        /// 默认 FullAuto，使未标注的 skill 在 Approval 模式下走授权流程（这是 Mode 字段的默认值，与出厂操作模式默认无关）。
         /// </summary>
         public SkillMode Mode { get; set; } = SkillMode.FullAuto;
 

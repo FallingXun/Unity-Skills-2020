@@ -64,8 +64,9 @@ namespace UnitySkills
     /// Upgrade compatibility: an install that already has any pre-v1.9 <c>UnitySkills_*</c>
     /// pref (e.g. <c>UnitySkills_PreferredPort</c>) defaults to <see cref="SkillsOperatingMode.Bypass"/>
     /// so existing users see zero behavior change; fresh installs default to
-    /// <see cref="SkillsOperatingMode.Auto"/> (SemiAuto whitelist + FullAuto blocked by default,
-    /// no popup unless an AI tries something restricted — keeps onboarding friction low).
+    /// <see cref="SkillsOperatingMode.Auto"/> — every skill that is NOT auto-classified
+    /// NeverInSemi (incl. FullAuto write skills) executes directly; only NeverInSemi
+    /// (Delete / MayEnterPlayMode / MayTriggerReload / RiskLevel=high) returns MODE_FORBIDDEN.
     /// </summary>
     public static class SkillsModeManager
     {
@@ -127,8 +128,9 @@ namespace UnitySkills
 
         /// <summary>
         /// Current operating mode. Setter persists to EditorPrefs and raises <see cref="OnChanged"/>.
-        /// Getter applies upgrade-compat rule: if no explicit pref but other UnitySkills_* keys
-        /// exist, returns <see cref="SkillsOperatingMode.Bypass"/> (existing install).
+        /// Getter applies the factory-default rule when no explicit pref is set: an existing
+        /// install (any other UnitySkills_* key present) → <see cref="SkillsOperatingMode.Bypass"/>;
+        /// a fresh install → <see cref="SkillsOperatingMode.Auto"/>. It never defaults to Approval.
         /// </summary>
         public static SkillsOperatingMode CurrentMode
         {

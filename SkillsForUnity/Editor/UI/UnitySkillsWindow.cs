@@ -269,8 +269,8 @@ namespace UnitySkills
                 string title = PermissionUiHelpers.L("perm_first_run_toast_title",
                     "UnitySkills v1.9", "UnitySkills v1.9");
                 string msg = PermissionUiHelpers.L("perm_first_run_toast_msg",
-                    "Approval mode is now the default (new in v1.9). Open the UnitySkills window and use the gear icon to switch to Auto / Bypass for automation.",
-                    "已启用 Approval 模式（v1.9 新默认）。打开 UnitySkills 主窗口，点击右上角设置齿轮抽屉切换到 Auto / Bypass 以启用自动化。");
+                    "Auto mode is the default for fresh installs (v1.9). FullAuto skills run directly; only high-risk operations (NeverInSemi) are blocked. Open the UnitySkills window and use the gear icon to switch to Approval (per-skill confirmation) or Bypass (allow all).",
+                    "新安装默认 Auto 自动模式（v1.9）。FullAuto skill 直接执行，仅高危操作（NeverInSemi）被拦截。打开 UnitySkills 主窗口，点击右上角设置齿轮抽屉，可切换到 Approval（逐项审批）或 Bypass（全部放行）。");
                 string openBtn = PermissionUiHelpers.L("perm_first_run_toast_open",
                     "Open Permissions", "打开权限面板");
                 string okBtn = PermissionUiHelpers.L("perm_first_run_toast_dismiss",
