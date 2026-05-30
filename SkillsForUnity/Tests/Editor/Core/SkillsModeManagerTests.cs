@@ -721,5 +721,64 @@ namespace UnitySkills.Tests.Core
             Assert.IsTrue(EditorPrefs.GetBool(PrefKeyMigrationDone, false),
                 "Done flag must still be set on fresh install so future reads skip migration");
         }
+
+        // ═════════════════════════════════════════════════════════════════
+        //  Test matrix #23 — AllowlistPresets「辅助代码编写包」内容 + 导入后放行
+        // ═════════════════════════════════════════════════════════════════
+
+        [Test]
+        public void AllowlistPresets_CodingAssist_IsNonEmptyDistinct_AndMergesBothGroups()
+        {
+            var pack = AllowlistPresets.CodingAssist;
+            Assert.IsNotNull(pack);
+            Assert.Greater(pack.Length, 0, "Coding Assist pack must not be empty");
+            CollectionAssert.AllItemsAreNotNull(pack);
+
+            // 无重复（忽略大小写）
+            var distinct = pack.Distinct(System.StringComparer.OrdinalIgnoreCase).ToArray();
+            Assert.AreEqual(pack.Length, distinct.Length, "Coding Assist pack must have no duplicates");
+
+            // CodingAssist == 组A + 组B
+            CollectionAssert.AreEquivalent(
+                AllowlistPresets.ScriptWrite.Concat(AllowlistPresets.InspectorSet).ToArray(),
+                pack);
+        }
+
+        [Test]
+        public void AllowlistPresets_ImportingPack_AllowsForbiddenAndGrantSkills_UnderApproval()
+        {
+            SkillsModeManager.CurrentMode = SkillsOperatingMode.Approval;
+
+            // 组A（脚本写）模拟为 NeverInSemi：导入前 Forbidden
+            var scriptWriteSample = MakeSkill(AllowlistPresets.ScriptWrite[0],
+                mayTriggerReload: true, risk: "high");
+            Assert.AreEqual(SkillsModeManager.AccessResult.Forbidden,
+                SkillsModeManager.CheckAccess(scriptWriteSample),
+                "Script-write skill must be forbidden before import");
+
+            // 组B（Inspector 赋值）模拟为 FullAuto 非 forbidden：导入前 NeedsGrant
+            var inspectorSample = MakeSkill(AllowlistPresets.InspectorSet[0],
+                op: SkillOperation.Create);
+            Assert.AreEqual(SkillsModeManager.AccessResult.NeedsGrant,
+                SkillsModeManager.CheckAccess(inspectorSample),
+                "Inspector-set skill must need grant before import");
+
+            // 模拟"导入辅助代码编写包"：逐个加入 Allowlist
+            foreach (var name in AllowlistPresets.CodingAssist)
+                SkillsModeManager.AddToAllowlist(name);
+
+            // 导入后：组A + 组B 全部放行（Allowlist 命中优先于 forbidden / grant）
+            Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
+                SkillsModeManager.CheckAccess(scriptWriteSample),
+                "Script-write skill must be allowed after import");
+            Assert.AreEqual(SkillsModeManager.AccessResult.Allowed,
+                SkillsModeManager.CheckAccess(inspectorSample),
+                "Inspector-set skill must be allowed after import");
+
+            // 包内每一项都已在白名单
+            foreach (var name in AllowlistPresets.CodingAssist)
+                Assert.IsTrue(SkillsModeManager.IsInAllowlist(name),
+                    "Pack member must be in allowlist after import: " + name);
+        }
     }
 }

@@ -78,8 +78,71 @@ namespace UnitySkills
                 });
             }
 
+            BuildPresetBar();
             RebuildList();
             UpdateFooter();
+        }
+
+        // 预置包快捷栏：在搜索栏与列表之间插入"勾选辅助代码编写包"按钮。
+        // 点击预填勾选预置项，用户可继续叠加自选，再走统一的 OnConfirmAdd 提交。
+        private void BuildPresetBar()
+        {
+            var root = rootVisualElement.Q<VisualElement>("picker-root");
+            var searchBar = rootVisualElement.Q<VisualElement>("picker-search-bar");
+            if (root == null || searchBar == null) return;
+
+            var bar = new VisualElement();
+            bar.style.flexDirection = FlexDirection.Row;
+            bar.style.alignItems = Align.Center;
+            bar.style.paddingLeft = 8;
+            bar.style.paddingRight = 8;
+            bar.style.paddingTop = 4;
+            bar.style.paddingBottom = 4;
+
+            var btn = new Button(SelectCodingAssistPreset)
+            {
+                text = string.Format(
+                    L("perm_picker_preset_coding", "+ Coding Assist pack ({0})", "+ 辅助代码编写包 ({0})"),
+                    AllowlistPresets.CodingAssist.Length),
+                tooltip = L("perm_picker_preset_tip",
+                    "Selects the script-write + Inspector-set skills. Once allowlisted, high-risk script writes bypass approval with no per-call confirm unless you enable Server > Settings > Require Confirmation.",
+                    "勾选脚本写 + Inspector 赋值类 skill。加入白名单后，高危脚本写操作将绕过审批且默认无二次确认（除非在 Server > Settings 开启 Require Confirmation）。")
+            };
+            btn.AddToClassList("picker-btn");
+            bar.Add(btn);
+
+            root.Insert(root.IndexOf(searchBar) + 1, bar);
+        }
+
+        // 把「辅助代码编写包」中"当前可选"的 skill 预填到勾选集；已在白名单的跳过。
+        private void SelectCodingAssistPreset()
+        {
+            var candidateNames = new HashSet<string>(
+                (_grouped ?? new List<IGrouping<string, SkillRouter.SkillInfo>>())
+                    .SelectMany(g => g).Select(s => s.Name),
+                StringComparer.OrdinalIgnoreCase);
+
+            int already = 0, missing = 0;
+            foreach (var name in AllowlistPresets.CodingAssist)
+            {
+                if (candidateNames.Contains(name)) _selected.Add(name);
+                else if (SkillsModeManager.IsInAllowlist(name)) already++;
+                else missing++;
+            }
+
+            RebuildList();
+            UpdateFooter();
+
+            // UpdateFooter 已设"已选 N 个"；若有已在白名单/缺失项，补充说明。
+            if ((already > 0 || missing > 0) && _summaryLabel != null)
+            {
+                var extra = new List<string>();
+                if (already > 0)
+                    extra.Add(string.Format(L("perm_picker_preset_already", "{0} already added", "{0} 个已在白名单"), already));
+                if (missing > 0)
+                    extra.Add(string.Format(L("perm_picker_preset_missing", "{0} unavailable", "{0} 个不可用"), missing));
+                _summaryLabel.text += "  (" + string.Join(", ", extra) + ")";
+            }
         }
 
         private void LoadCandidates()
