@@ -10,7 +10,7 @@ namespace UnitySkills.Tests.Core
     [TestFixture]
     public class SelectionDrivenSkillTests
     {
-        private const string TempRoot = "Assets/CodexTemp/SelectionDrivenSkillTests";
+        private const string TempRoot = "Assets/Temp/SelectionDrivenSkillTests";
         private SkillsOperatingMode _savedMode;
 
         [SetUp]
@@ -22,10 +22,10 @@ namespace UnitySkills.Tests.Core
             // 确保临时目录存在
             if (!AssetDatabase.IsValidFolder(TempRoot))
             {
-                var parentFolder = "Assets/CodexTemp";
+                var parentFolder = "Assets/Temp";
                 if (!AssetDatabase.IsValidFolder(parentFolder))
                 {
-                    AssetDatabase.CreateFolder("Assets", "CodexTemp");
+                    AssetDatabase.CreateFolder("Assets", "Temp");
                 }
                 AssetDatabase.CreateFolder(parentFolder, "SelectionDrivenSkillTests");
                 AssetDatabase.Refresh();
@@ -41,7 +41,23 @@ namespace UnitySkills.Tests.Core
         {
             Selection.objects = new Object[0];
             GameObjectFinder.InvalidateCache();
-            AssetDatabase.DeleteAsset(TempRoot);
+
+            // 清理临时目录
+            if (AssetDatabase.IsValidFolder(TempRoot))
+            {
+                AssetDatabase.DeleteAsset(TempRoot);
+            }
+
+            // 如果 Temp 父目录为空，也删除
+            if (AssetDatabase.IsValidFolder("Assets/Temp"))
+            {
+                var subFolders = AssetDatabase.GetSubFolders("Assets/Temp");
+                if (subFolders.Length == 0)
+                {
+                    AssetDatabase.DeleteAsset("Assets/Temp");
+                }
+            }
+
             AssetDatabase.Refresh();
             SkillsModeManager.CurrentMode = _savedMode;
         }

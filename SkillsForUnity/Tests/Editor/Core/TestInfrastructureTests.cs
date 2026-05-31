@@ -81,22 +81,22 @@ namespace UnitySkills.Tests.Core
         [Test]
         public void TestRun_WhenAnotherRunIsActive_ReturnsErrorInsteadOfStartingConcurrentRunner()
         {
-            const string testFolder = "Assets/CodexTemp/RealValidation";
+            const string testFolder = "Assets/Temp/RealValidation";
 
             // 确保临时目录存在
             if (!AssetDatabase.IsValidFolder(testFolder))
             {
-                var parentFolder = "Assets/CodexTemp";
+                var parentFolder = "Assets/Temp";
                 if (!AssetDatabase.IsValidFolder(parentFolder))
                 {
-                    AssetDatabase.CreateFolder("Assets", "CodexTemp");
+                    AssetDatabase.CreateFolder("Assets", "Temp");
                 }
                 AssetDatabase.CreateFolder(parentFolder, "RealValidation");
                 AssetDatabase.Refresh();
             }
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var cleanScenePath = "Assets/CodexTemp/RealValidation/ActiveJobGuardScene.unity";
+            var cleanScenePath = "Assets/Temp/RealValidation/ActiveJobGuardScene.unity";
             Assert.That(EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), cleanScenePath), Is.True);
 
             var jobId = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -107,6 +107,32 @@ namespace UnitySkills.Tests.Core
             try
             {
                 var json = ToJObject(TestSkills.TestRun());
+                Assert.That(json["success"]?.Value<bool>(), Is.False);
+                StringAssert.Contains("already active", json["error"]?.ToString());
+            }
+            finally
+            {
+                BatchPersistence.RemoveJob(jobId);
+
+                // 清理临时目录
+                if (AssetDatabase.IsValidFolder(testFolder))
+                {
+                    AssetDatabase.DeleteAsset(testFolder);
+                }
+
+                // 如果 Temp 父目录为空，也删除
+                if (AssetDatabase.IsValidFolder("Assets/Temp"))
+                {
+                    var subFolders = AssetDatabase.GetSubFolders("Assets/Temp");
+                    if (subFolders.Length == 0)
+                    {
+                        AssetDatabase.DeleteAsset("Assets/Temp");
+                    }
+                }
+
+                AssetDatabase.Refresh();
+            }
+        }
                 Assert.That(json["success"]?.Value<bool>(), Is.False);
                 StringAssert.Contains("already active", json["error"]?.ToString());
             }

@@ -244,15 +244,15 @@ namespace UnitySkills.Tests.Core
         [Test]
         public void SceneDiff_SnapshotOnlyIncludesActiveSceneObjects()
         {
-            const string testFolder = "Assets/CodexTemp/RealValidation";
+            const string testFolder = "Assets/Temp/RealValidation";
 
             // 确保临时目录存在
             if (!AssetDatabase.IsValidFolder(testFolder))
             {
-                var parentFolder = "Assets/CodexTemp";
+                var parentFolder = "Assets/Temp";
                 if (!AssetDatabase.IsValidFolder(parentFolder))
                 {
-                    AssetDatabase.CreateFolder("Assets", "CodexTemp");
+                    AssetDatabase.CreateFolder("Assets", "Temp");
                 }
                 AssetDatabase.CreateFolder(parentFolder, "RealValidation");
                 AssetDatabase.Refresh();
@@ -262,13 +262,13 @@ namespace UnitySkills.Tests.Core
             {
                 var activeScene = SceneManager.GetActiveScene();
                 var activeObject = new GameObject("ActiveSceneObject");
-                var activeSaveOk = EditorSceneManager.SaveScene(activeScene, "Assets/CodexTemp/RealValidation/SceneDiffActive.unity");
+                var activeSaveOk = EditorSceneManager.SaveScene(activeScene, "Assets/Temp/RealValidation/SceneDiffActive.unity");
                 Assert.That(activeSaveOk, Is.True);
 
                 var additiveScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
                 var additiveObject = new GameObject("AdditiveSceneObject");
                 SceneManager.MoveGameObjectToScene(additiveObject, additiveScene);
-                var additiveSaveOk = EditorSceneManager.SaveScene(additiveScene, "Assets/CodexTemp/RealValidation/SceneDiffAdditive.unity");
+                var additiveSaveOk = EditorSceneManager.SaveScene(additiveScene, "Assets/Temp/RealValidation/SceneDiffAdditive.unity");
                 Assert.That(additiveSaveOk, Is.True);
                 var setActiveOk = SceneManager.SetActiveScene(activeScene);
                 Assert.That(setActiveOk, Is.True);
@@ -286,7 +286,23 @@ namespace UnitySkills.Tests.Core
             finally
             {
                 if (AssetDatabase.IsValidFolder(testFolder))
+                {
                     AssetDatabase.DeleteAsset(testFolder);
+                }
+
+                // 如果 Temp 父目录为空，也删除
+                if (AssetDatabase.IsValidFolder("Assets/Temp"))
+                {
+                    var subFolders = AssetDatabase.GetSubFolders("Assets/Temp");
+                    if (subFolders.Length == 0)
+                    {
+                        AssetDatabase.DeleteAsset("Assets/Temp");
+                    }
+                }
+
+                AssetDatabase.Refresh();
+            }
+        }
             }
         }
     }
