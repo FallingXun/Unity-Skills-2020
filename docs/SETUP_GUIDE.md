@@ -10,6 +10,8 @@
 - **Network**: localhost loopback (`127.0.0.1` / `localhost`)
 - **Python** (optional): 3.7+ with `requests` package, for the Python client helper
 
+> **v2.0.0 Efficiency Boost**: Schema caching + exponential backoff polling + BATCH-FIRST guidance → Token consumption ↓ 96%, simple task calls ↓ 75-83%. See [Release Notes](https://github.com/Besty0728/Unity-Skills/releases/tag/v2.0.0).
+
 ---
 
 ## 1. Install the Unity Package

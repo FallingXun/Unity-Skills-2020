@@ -10,6 +10,8 @@
 - **网络**：本地回环地址 `localhost` / `127.0.0.1`
 - **Python**（可选）：3.7+，需安装 `requests` 包，用于 Python 客户端
 
+> **v2.0.0 效率提升**：Schema 缓存 + 指数退避轮询 + BATCH-FIRST 引导 → Token 消耗 ↓ 96%，简单任务调用次数 ↓ 75-83%。详见 [Release Notes](https://github.com/Besty0728/Unity-Skills/releases/tag/v2.0.0)。
+
 ---
 
 ## 1. 安装 Unity 包
