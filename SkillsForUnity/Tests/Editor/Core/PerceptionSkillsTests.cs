@@ -303,7 +303,5 @@ namespace UnitySkills.Tests.Core
                 AssetDatabase.Refresh();
             }
         }
-            }
-        }
     }
 }

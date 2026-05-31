@@ -133,16 +133,6 @@ namespace UnitySkills.Tests.Core
                 AssetDatabase.Refresh();
             }
         }
-                Assert.That(json["success"]?.Value<bool>(), Is.False);
-                StringAssert.Contains("already active", json["error"]?.ToString());
-            }
-            finally
-            {
-                BatchPersistence.RemoveJob(jobId);
-                if (AssetDatabase.IsValidFolder(testFolder))
-                    AssetDatabase.DeleteAsset(testFolder);
-            }
-        }
 
         [Test]
         public void BatchPersistence_TransientScope_DoesNotPersistPreviewArtifacts()
