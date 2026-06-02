@@ -826,6 +826,95 @@ namespace UnitySkills
             return new { success = true, name = go.name, sizeDelta = $"({rect.sizeDelta.x}, {rect.sizeDelta.y})", anchoredPosition = $"({rect.anchoredPosition.x}, {rect.anchoredPosition.y})" };
         }
 
+        [UnitySkill("ui_get_rect_transform", "Get full RectTransform data for a UI element",
+            Category = SkillCategory.UI, Operation = SkillOperation.Query,
+            Tags = new[] { "rect-transform", "ugui", "anchor", "inspect" },
+            Outputs = new[] { "name", "anchorMin", "anchorMax", "anchoredPosition3D", "sizeDelta", "offsetMin", "offsetMax" },
+            RequiresInput = new[] { "gameObject" },
+            ReadOnly = true,
+            Mode = SkillMode.SemiAuto)]
+        public static object UIGetRectTransform(string name = null, int instanceId = 0, string path = null)
+        {
+            var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
+            if (error != null) return error;
+
+            var rect = go.GetComponent<RectTransform>();
+            if (rect == null) return new { error = "GameObject has no RectTransform" };
+
+            return BuildRectTransformResult(go, rect);
+        }
+
+        [UnitySkill("ui_set_rect_transform", "Set full RectTransform data for a UI element, including anchors, pivot, anchoredPosition3D, sizeDelta, offsets, local transform, width and height",
+            Category = SkillCategory.UI, Operation = SkillOperation.Modify,
+            Tags = new[] { "rect-transform", "ugui", "anchor", "offset", "layout" },
+            Outputs = new[] { "name", "anchorMin", "anchorMax", "anchoredPosition3D", "sizeDelta", "offsetMin", "offsetMax" },
+            RequiresInput = new[] { "gameObject" },
+            TracksWorkflow = true)]
+        public static object UISetRectTransform(
+            string name = null, int instanceId = 0, string path = null,
+            float? anchorMinX = null, float? anchorMinY = null,
+            float? anchorMaxX = null, float? anchorMaxY = null,
+            float? pivotX = null, float? pivotY = null,
+            float? anchoredPosX = null, float? anchoredPosY = null, float? anchoredPosZ = null,
+            float? sizeDeltaX = null, float? sizeDeltaY = null,
+            float? offsetMinX = null, float? offsetMinY = null,
+            float? offsetMaxX = null, float? offsetMaxY = null,
+            float? localPosX = null, float? localPosY = null, float? localPosZ = null,
+            float? localRotX = null, float? localRotY = null, float? localRotZ = null,
+            float? localScaleX = null, float? localScaleY = null, float? localScaleZ = null,
+            float? width = null, float? height = null)
+        {
+            var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
+            if (error != null) return error;
+
+            var rect = go.GetComponent<RectTransform>();
+            if (rect == null) return new { error = "GameObject has no RectTransform" };
+
+            WorkflowManager.SnapshotObject(rect);
+            Undo.RecordObject(rect, "Set RectTransform");
+
+            ApplyRectTransform(rect,
+                anchorMinX, anchorMinY, anchorMaxX, anchorMaxY, pivotX, pivotY,
+                anchoredPosX, anchoredPosY, anchoredPosZ, sizeDeltaX, sizeDeltaY,
+                offsetMinX, offsetMinY, offsetMaxX, offsetMaxY,
+                localPosX, localPosY, localPosZ, localRotX, localRotY, localRotZ,
+                localScaleX, localScaleY, localScaleZ, width, height);
+
+            EditorUtility.SetDirty(rect);
+            return BuildRectTransformResult(go, rect);
+        }
+
+        [UnitySkill("ui_set_rect_transform_batch", "Set full RectTransform data for multiple UI elements. items: JSON array with target identifiers and rect transform fields.",
+            Category = SkillCategory.UI, Operation = SkillOperation.Modify,
+            Tags = new[] { "rect-transform", "ugui", "anchor", "offset", "layout", "batch" },
+            Outputs = new[] { "name", "anchorMin", "anchorMax", "anchoredPosition3D" },
+            RequiresInput = new[] { "gameObject" },
+            TracksWorkflow = true)]
+        public static object UISetRectTransformBatch(string items)
+        {
+            return BatchExecutor.Execute<BatchRectTransformItem>(items, item =>
+            {
+                var (go, error) = GameObjectFinder.FindOrError(item.name, item.instanceId, item.path);
+                if (error != null) throw new Exception("Object not found");
+
+                var rect = go.GetComponent<RectTransform>();
+                if (rect == null) throw new Exception("GameObject has no RectTransform");
+
+                WorkflowManager.SnapshotObject(rect);
+                Undo.RecordObject(rect, "Batch Set RectTransform");
+
+                ApplyRectTransform(rect,
+                    item.anchorMinX, item.anchorMinY, item.anchorMaxX, item.anchorMaxY, item.pivotX, item.pivotY,
+                    item.anchoredPosX, item.anchoredPosY, item.anchoredPosZ, item.sizeDeltaX, item.sizeDeltaY,
+                    item.offsetMinX, item.offsetMinY, item.offsetMaxX, item.offsetMaxY,
+                    item.localPosX, item.localPosY, item.localPosZ, item.localRotX, item.localRotY, item.localRotZ,
+                    item.localScaleX, item.localScaleY, item.localScaleZ, item.width, item.height);
+
+                EditorUtility.SetDirty(rect);
+                return BuildRectTransformResult(go, rect);
+            }, item => item.name ?? item.path ?? item.instanceId.ToString());
+        }
+
         [UnitySkill("ui_layout_children", "Arrange child UI elements in a layout (Vertical, Horizontal, Grid)",
             Category = SkillCategory.UI, Operation = SkillOperation.Modify,
             Tags = new[] { "layout", "ugui", "vertical", "horizontal", "grid" },
@@ -1611,6 +1700,128 @@ namespace UnitySkills
                 interactable = selectable.interactable,
                 navigationMode = selectable.navigation.mode.ToString()
             };
+        }
+
+        private static void ApplyRectTransform(
+            RectTransform rect,
+            float? anchorMinX, float? anchorMinY,
+            float? anchorMaxX, float? anchorMaxY,
+            float? pivotX, float? pivotY,
+            float? anchoredPosX, float? anchoredPosY, float? anchoredPosZ,
+            float? sizeDeltaX, float? sizeDeltaY,
+            float? offsetMinX, float? offsetMinY,
+            float? offsetMaxX, float? offsetMaxY,
+            float? localPosX, float? localPosY, float? localPosZ,
+            float? localRotX, float? localRotY, float? localRotZ,
+            float? localScaleX, float? localScaleY, float? localScaleZ,
+            float? width, float? height)
+        {
+            if (TryMergeVector2(anchorMinX, anchorMinY, rect.anchorMin, out var anchorMin))
+                rect.anchorMin = anchorMin;
+            if (TryMergeVector2(anchorMaxX, anchorMaxY, rect.anchorMax, out var anchorMax))
+                rect.anchorMax = anchorMax;
+            if (TryMergeVector2(pivotX, pivotY, rect.pivot, out var pivot))
+                rect.pivot = pivot;
+            if (TryMergeVector3(anchoredPosX, anchoredPosY, anchoredPosZ, rect.anchoredPosition3D, out var anchoredPosition3D))
+                rect.anchoredPosition3D = anchoredPosition3D;
+            if (TryMergeVector2(sizeDeltaX, sizeDeltaY, rect.sizeDelta, out var sizeDelta))
+                rect.sizeDelta = sizeDelta;
+            if (width.HasValue)
+                rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width.Value);
+            if (height.HasValue)
+                rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height.Value);
+            if (TryMergeVector2(offsetMinX, offsetMinY, rect.offsetMin, out var offsetMin))
+                rect.offsetMin = offsetMin;
+            if (TryMergeVector2(offsetMaxX, offsetMaxY, rect.offsetMax, out var offsetMax))
+                rect.offsetMax = offsetMax;
+            if (TryMergeVector3(localPosX, localPosY, localPosZ, rect.localPosition, out var localPosition))
+                rect.localPosition = localPosition;
+            if (TryMergeVector3(localRotX, localRotY, localRotZ, rect.localEulerAngles, out var localEulerAngles))
+                rect.localEulerAngles = localEulerAngles;
+            if (TryMergeVector3(localScaleX, localScaleY, localScaleZ, rect.localScale, out var localScale))
+                rect.localScale = localScale;
+        }
+
+        private static object BuildRectTransformResult(GameObject go, RectTransform rect)
+        {
+            return new
+            {
+                success = true,
+                name = go.name,
+                instanceId = go.GetInstanceID(),
+                path = GameObjectFinder.GetPath(go),
+                anchorMin = ToObject(rect.anchorMin),
+                anchorMax = ToObject(rect.anchorMax),
+                pivot = ToObject(rect.pivot),
+                anchoredPosition3D = ToObject(rect.anchoredPosition3D),
+                sizeDelta = ToObject(rect.sizeDelta),
+                offsetMin = ToObject(rect.offsetMin),
+                offsetMax = ToObject(rect.offsetMax),
+                localPosition = ToObject(rect.localPosition),
+                localEulerAngles = ToObject(rect.localEulerAngles),
+                localScale = ToObject(rect.localScale),
+                rect = new { width = rect.rect.width, height = rect.rect.height }
+            };
+        }
+
+        private static bool TryMergeVector2(float? x, float? y, Vector2 current, out Vector2 result)
+        {
+            if (!x.HasValue && !y.HasValue)
+            {
+                result = current;
+                return false;
+            }
+
+            result = new Vector2(x ?? current.x, y ?? current.y);
+            return true;
+        }
+
+        private static bool TryMergeVector3(float? x, float? y, float? z, Vector3 current, out Vector3 result)
+        {
+            if (!x.HasValue && !y.HasValue && !z.HasValue)
+            {
+                result = current;
+                return false;
+            }
+
+            result = new Vector3(x ?? current.x, y ?? current.y, z ?? current.z);
+            return true;
+        }
+
+        private static object ToObject(Vector2 value) => new { x = value.x, y = value.y };
+        private static object ToObject(Vector3 value) => new { x = value.x, y = value.y, z = value.z };
+
+        private class BatchRectTransformItem
+        {
+            public string name { get; set; }
+            public int instanceId { get; set; }
+            public string path { get; set; }
+            public float? anchorMinX { get; set; }
+            public float? anchorMinY { get; set; }
+            public float? anchorMaxX { get; set; }
+            public float? anchorMaxY { get; set; }
+            public float? pivotX { get; set; }
+            public float? pivotY { get; set; }
+            public float? anchoredPosX { get; set; }
+            public float? anchoredPosY { get; set; }
+            public float? anchoredPosZ { get; set; }
+            public float? sizeDeltaX { get; set; }
+            public float? sizeDeltaY { get; set; }
+            public float? offsetMinX { get; set; }
+            public float? offsetMinY { get; set; }
+            public float? offsetMaxX { get; set; }
+            public float? offsetMaxY { get; set; }
+            public float? localPosX { get; set; }
+            public float? localPosY { get; set; }
+            public float? localPosZ { get; set; }
+            public float? localRotX { get; set; }
+            public float? localRotY { get; set; }
+            public float? localRotZ { get; set; }
+            public float? localScaleX { get; set; }
+            public float? localScaleY { get; set; }
+            public float? localScaleZ { get; set; }
+            public float? width { get; set; }
+            public float? height { get; set; }
         }
     }
 }

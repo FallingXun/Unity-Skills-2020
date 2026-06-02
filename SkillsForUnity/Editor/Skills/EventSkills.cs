@@ -303,6 +303,116 @@ namespace UnitySkills
             return (evt, component, null);
         }
 
+        private static bool TryResolveListenerTarget(
+            string targetName,
+            int targetInstanceId,
+            string targetPath,
+            string targetComponentName,
+            out Object targetObj,
+            out System.Type targetType,
+            out string error)
+        {
+            targetObj = null;
+            targetType = null;
+            error = null;
+
+            var (targetGo, targetErr) = GameObjectFinder.FindOrError(name: targetName, instanceId: targetInstanceId, path: targetPath);
+            if (targetErr != null)
+            {
+                error = SkillResultHelper.TryGetError(targetErr, out var findError) ? findError : "Target object not found";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(targetComponentName) ||
+                string.Equals(targetComponentName, "GameObject", System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(targetComponentName, "UnityEngine.GameObject", System.StringComparison.OrdinalIgnoreCase))
+            {
+                targetObj = targetGo;
+                targetType = typeof(GameObject);
+                return true;
+            }
+
+            var componentType = ComponentSkills.FindComponentType(targetComponentName);
+            var targetComponent = componentType != null
+                ? targetGo.GetComponent(componentType)
+                : targetGo.GetComponent(targetComponentName);
+            if (targetComponent == null)
+            {
+                error = $"Target Component not found: {targetComponentName}";
+                return false;
+            }
+
+            targetObj = targetComponent;
+            targetType = targetComponent.GetType();
+            return true;
+        }
+
+        private static MethodInfo FindTargetMethod(System.Type targetType, string methodName, System.Type[] parameterTypes)
+        {
+            var method = targetType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public, null, parameterTypes, null);
+            if (method != null) return method;
+
+            if (methodName != null && methodName.StartsWith("set_", System.StringComparison.Ordinal))
+            {
+                var property = targetType.GetProperty(methodName.Substring(4), BindingFlags.Instance | BindingFlags.Public);
+                var setter = property?.GetSetMethod();
+                if (setter != null)
+                {
+                    var parameters = setter.GetParameters();
+                    if (parameters.Length == parameterTypes.Length &&
+                        parameters.Select(p => p.ParameterType).SequenceEqual(parameterTypes))
+                    {
+                        return setter;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static MethodInfo FindObjectArgumentMethod(System.Type targetType, string methodName, Object argument)
+        {
+            return targetType
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(m => string.Equals(m.Name, methodName, System.StringComparison.Ordinal))
+                .Select(m => new { Method = m, Parameters = m.GetParameters() })
+                .Where(x => x.Parameters.Length == 1 && typeof(Object).IsAssignableFrom(x.Parameters[0].ParameterType))
+                .Where(x => argument == null || x.Parameters[0].ParameterType.IsAssignableFrom(argument.GetType()))
+                .Select(x => x.Method)
+                .FirstOrDefault();
+        }
+
+        private static bool TryRegisterObjectPersistentListener(UnityEventBase evt, int index, Object targetObj, MethodInfo method, Object argument, out string error)
+        {
+            error = null;
+            try
+            {
+                var parameterType = method.GetParameters()[0].ParameterType;
+                var delegateType = typeof(UnityAction<>).MakeGenericType(parameterType);
+                var listener = System.Delegate.CreateDelegate(delegateType, targetObj, method);
+                var registerMethod = typeof(UnityEventTools)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m =>
+                        m.Name == "RegisterObjectPersistentListener" &&
+                        m.IsGenericMethodDefinition &&
+                        m.GetParameters().Length == 4);
+                if (registerMethod == null)
+                {
+                    error = "UnityEventTools.RegisterObjectPersistentListener<T> not found";
+                    return false;
+                }
+
+                registerMethod.MakeGenericMethod(parameterType)
+                    .Invoke(null, new object[] { evt, index, listener, argument });
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                error = (ex.InnerException ?? ex).Message;
+                return false;
+            }
+        }
+
         [UnitySkill("event_clear_listeners", "Remove all persistent listeners from a UnityEvent", TracksWorkflow = true,
             Category = SkillCategory.Event, Operation = SkillOperation.Delete,
             Tags = new[] { "event", "clear", "listeners", "remove" },
@@ -335,6 +445,116 @@ namespace UnitySkills
             Undo.RecordObject(comp, "Set Listener State");
             evt.SetPersistentListenerState(index, callState);
             return new { success = true, index, state = callState.ToString() };
+        }
+
+        [UnitySkill("event_set_listener", "Replace a persistent UnityEvent listener at a specific index. Supports void/int/float/string/bool/Object static arguments.",
+            Category = SkillCategory.Event, Operation = SkillOperation.Modify,
+            Tags = new[] { "event", "listener", "set", "replace", "persistent" },
+            Outputs = new[] { "index", "target", "method", "state", "argType" },
+            RequiresInput = new[] { "gameObject", "componentName", "eventName", "targetName", "methodName" },
+            TracksWorkflow = true)]
+        public static object EventSetListener(
+            string name = null, int instanceId = 0, string path = null, string componentName = null, string eventName = null,
+            int index = 0,
+            string targetName = null, int targetInstanceId = 0, string targetPath = null,
+            string targetComponentName = null, string methodName = null,
+            string mode = "RuntimeOnly",
+            string argType = "void",
+            float floatArg = 0, int intArg = 0, string stringArg = null, bool boolArg = false,
+            string objectReferenceName = null, int objectReferenceInstanceId = 0, string objectReferencePath = null,
+            string objectAssetPath = null, string objectType = null)
+        {
+            var (evt, comp, err) = FindEvent(name, instanceId, path, componentName, eventName);
+            if (err != null) return err;
+            if (index < 0 || index >= evt.GetPersistentEventCount()) return new { error = "Index out of range" };
+            if (Validate.Required(methodName, "methodName") is object methodErr) return methodErr;
+
+            if (!TryResolveListenerTarget(targetName, targetInstanceId, targetPath, targetComponentName, out var targetObj, out var targetType, out var targetError))
+            {
+                return new { error = targetError };
+            }
+
+            if (!System.Enum.TryParse<UnityEventCallState>(mode, true, out var callState))
+            {
+                return new { error = $"Invalid mode: {mode}" };
+            }
+
+            WorkflowManager.SnapshotObject(comp);
+            Undo.RecordObject(comp, "Set Event Listener");
+
+            var normalizedArgType = (argType ?? "void").Trim().ToLowerInvariant();
+            switch (normalizedArgType)
+            {
+                case "void":
+                    if (!(evt is UnityEvent unityEvent))
+                        return new { error = "Void listener replacement requires a standard UnityEvent" };
+                    var voidMethod = FindTargetMethod(targetType, methodName, System.Type.EmptyTypes);
+                    if (voidMethod == null) return new { error = $"Method '{methodName}()' not found on {targetType.Name}" };
+                    var voidDelegate = System.Delegate.CreateDelegate(typeof(UnityAction), targetObj, voidMethod) as UnityAction;
+                    UnityEventTools.RegisterPersistentListener(unityEvent, index, voidDelegate);
+                    break;
+
+                case "float":
+                    var floatMethod = FindTargetMethod(targetType, methodName, new[] { typeof(float) });
+                    if (floatMethod == null) return new { error = $"Method '{methodName}(float)' not found on {targetType.Name}" };
+                    var floatDelegate = System.Delegate.CreateDelegate(typeof(UnityAction<float>), targetObj, floatMethod) as UnityAction<float>;
+                    UnityEventTools.RegisterFloatPersistentListener(evt, index, floatDelegate, floatArg);
+                    break;
+
+                case "int":
+                    var intMethod = FindTargetMethod(targetType, methodName, new[] { typeof(int) });
+                    if (intMethod == null) return new { error = $"Method '{methodName}(int)' not found on {targetType.Name}" };
+                    var intDelegate = System.Delegate.CreateDelegate(typeof(UnityAction<int>), targetObj, intMethod) as UnityAction<int>;
+                    UnityEventTools.RegisterIntPersistentListener(evt, index, intDelegate, intArg);
+                    break;
+
+                case "string":
+                    var stringMethod = FindTargetMethod(targetType, methodName, new[] { typeof(string) });
+                    if (stringMethod == null) return new { error = $"Method '{methodName}(string)' not found on {targetType.Name}" };
+                    var stringDelegate = System.Delegate.CreateDelegate(typeof(UnityAction<string>), targetObj, stringMethod) as UnityAction<string>;
+                    UnityEventTools.RegisterStringPersistentListener(evt, index, stringDelegate, stringArg);
+                    break;
+
+                case "bool":
+                    var boolMethod = FindTargetMethod(targetType, methodName, new[] { typeof(bool) });
+                    if (boolMethod == null) return new { error = $"Method '{methodName}(bool)' not found on {targetType.Name}" };
+                    var boolDelegate = System.Delegate.CreateDelegate(typeof(UnityAction<bool>), targetObj, boolMethod) as UnityAction<bool>;
+                    UnityEventTools.RegisterBoolPersistentListener(evt, index, boolDelegate, boolArg);
+                    break;
+
+                case "object":
+                    if (!SerializedPropertySkillUtility.TryResolveObjectReference(
+                            objectReferenceName, objectReferenceInstanceId, objectReferencePath, objectAssetPath, objectType,
+                            out var objectArg, out var objectArgError))
+                    {
+                        return new { error = objectArgError };
+                    }
+
+                    var objectMethod = FindObjectArgumentMethod(targetType, methodName, objectArg);
+                    if (objectMethod == null) return new { error = $"Compatible object method '{methodName}(Object)' not found on {targetType.Name}" };
+                    if (!TryRegisterObjectPersistentListener(evt, index, targetObj, objectMethod, objectArg, out var registerError))
+                    {
+                        return new { error = registerError };
+                    }
+                    break;
+
+                default:
+                    return new { error = $"Unsupported argType: {argType}" };
+            }
+
+            evt.SetPersistentListenerState(index, callState);
+            EditorUtility.SetDirty(comp);
+
+            return new
+            {
+                success = true,
+                index,
+                target = targetObj != null ? targetObj.name : "null",
+                targetType = targetType.Name,
+                method = methodName,
+                state = callState.ToString(),
+                argType = normalizedArgType
+            };
         }
 
         [UnitySkill("event_list_events", "List all UnityEvent fields on a component",

@@ -428,6 +428,119 @@ namespace UnitySkills
             }, item => item.name ?? item.path);
         }
 
+        [UnitySkill("component_get_serialized_properties", "List Inspector serialized properties on a component via SerializedObject (supports nested fields and array/list property paths)",
+            Category = SkillCategory.Component, Operation = SkillOperation.Query,
+            Tags = new[] { "serialized", "inspector", "property", "field" },
+            Outputs = new[] { "gameObject", "component", "properties" },
+            RequiresInput = new[] { "gameObject", "component" },
+            ReadOnly = true,
+            Mode = SkillMode.SemiAuto)]
+        public static object ComponentGetSerializedProperties(
+            string name = null, int instanceId = 0, string path = null,
+            string componentType = null, bool includeChildren = true, int limit = 200)
+        {
+            if (Validate.Required(componentType, "componentType") is object reqErr) return reqErr;
+
+            var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
+            if (error != null) return error;
+
+            var type = FindComponentType(componentType);
+            if (type == null) return new { error = $"Component type not found: {componentType}" };
+
+            var comp = go.GetComponent(type);
+            if (comp == null) return new { error = $"Component not found: {componentType}" };
+
+            return new
+            {
+                success = true,
+                gameObject = go.name,
+                component = componentType,
+                fullTypeName = type.FullName,
+                properties = SerializedPropertySkillUtility.ListProperties(comp, includeChildren, limit)
+            };
+        }
+
+        [UnitySkill("component_set_serialized_property", "Set an Inspector serialized property on a component by propertyPath. Supports nested fields, arrays/lists, object references, vectors, colors, enums, and primitives.",
+            Category = SkillCategory.Component, Operation = SkillOperation.Modify,
+            Tags = new[] { "serialized", "inspector", "property", "field", "reference" },
+            Outputs = new[] { "gameObject", "component", "propertyPath", "valueSet" },
+            RequiresInput = new[] { "gameObject", "component" },
+            TracksWorkflow = true)]
+        public static object ComponentSetSerializedProperty(
+            string name = null, int instanceId = 0, string path = null,
+            string componentType = null, string propertyPath = null, string value = null,
+            string referenceName = null, int referenceInstanceId = 0, string referencePath = null,
+            string assetPath = null, string objectType = null)
+        {
+            if (Validate.Required(componentType, "componentType") is object reqErr1) return reqErr1;
+            if (Validate.Required(propertyPath, "propertyPath") is object reqErr2) return reqErr2;
+
+            var (go, error) = GameObjectFinder.FindOrError(name, instanceId, path);
+            if (error != null) return error;
+
+            var type = FindComponentType(componentType);
+            if (type == null) return new { error = $"Component type not found: {componentType}" };
+
+            var comp = go.GetComponent(type);
+            if (comp == null) return new { error = $"Component not found: {componentType}" };
+
+            var serializedObject = new SerializedObject(comp);
+            serializedObject.Update();
+            var property = SerializedPropertySkillUtility.FindProperty(serializedObject, propertyPath);
+            if (property == null)
+            {
+                return new
+                {
+                    error = $"Serialized property not found: {propertyPath}",
+                    availableProperties = SerializedPropertySkillUtility.ListProperties(comp, true, 60)
+                };
+            }
+
+            WorkflowManager.SnapshotObject(comp);
+            Undo.RecordObject(comp, "Set Serialized Property");
+
+            if (!SerializedPropertySkillUtility.TrySetProperty(
+                    property, value, referenceName, referenceInstanceId, referencePath, assetPath, objectType, out var setError))
+            {
+                return new { error = setError };
+            }
+
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(comp);
+
+            return new
+            {
+                success = true,
+                gameObject = go.name,
+                component = componentType,
+                propertyPath = property.propertyPath,
+                valueSet = SerializedPropertySkillUtility.DescribeValue(property)
+            };
+        }
+
+        [UnitySkill("component_set_serialized_property_batch", "Set Inspector serialized properties on multiple components. items: JSON array of {name, instanceId, path, componentType, propertyPath, value, referenceName, referenceInstanceId, referencePath, assetPath, objectType}",
+            Category = SkillCategory.Component, Operation = SkillOperation.Modify,
+            Tags = new[] { "serialized", "inspector", "property", "field", "batch" },
+            Outputs = new[] { "gameObject", "propertyPath" },
+            RequiresInput = new[] { "gameObject", "component" },
+            TracksWorkflow = true)]
+        public static object ComponentSetSerializedPropertyBatch(string items)
+        {
+            return BatchExecutor.Execute<BatchSetSerializedPropertyItem>(items, item =>
+            {
+                var result = ComponentSetSerializedProperty(
+                    item.name, item.instanceId, item.path,
+                    item.componentType, item.propertyPath, item.value,
+                    item.referenceName, item.referenceInstanceId, item.referencePath,
+                    item.assetPath, item.objectType);
+                if (SkillResultHelper.TryGetError(result, out var error))
+                {
+                    throw new System.Exception(error);
+                }
+                return result;
+            }, item => item.name ?? item.path ?? item.instanceId.ToString());
+        }
+
         private class BatchSetPropertyItem
         {
             public string name { get; set; }
@@ -439,6 +552,21 @@ namespace UnitySkills
             public string referencePath { get; set; }
             public string referenceName { get; set; }
             public string assetPath { get; set; }
+        }
+
+        private class BatchSetSerializedPropertyItem
+        {
+            public string name { get; set; }
+            public int instanceId { get; set; }
+            public string path { get; set; }
+            public string componentType { get; set; }
+            public string propertyPath { get; set; }
+            public string value { get; set; }
+            public string referenceName { get; set; }
+            public int referenceInstanceId { get; set; }
+            public string referencePath { get; set; }
+            public string assetPath { get; set; }
+            public string objectType { get; set; }
         }
 
         [UnitySkill("component_get_properties", "Get all properties of a component (supports name/instanceId/path)",
@@ -1001,6 +1129,74 @@ namespace UnitySkills
             UnityEditorInternal.ComponentUtility.CopyComponent(srcComp);
             UnityEditorInternal.ComponentUtility.PasteComponentAsNew(dstGo);
             return new { success = true, source = sourceName, target = targetName, componentType };
+        }
+
+        [UnitySkill("component_copy_exact", "Copy a component from one GameObject to another and verify every serialized Inspector field matches after paste",
+            Category = SkillCategory.Component, Operation = SkillOperation.Create,
+            Tags = new[] { "copy", "paste", "duplicate", "serialized", "exact" },
+            Outputs = new[] { "source", "target", "componentType", "verified", "mismatchCount" },
+            RequiresInput = new[] { "gameObject", "component" },
+            TracksWorkflow = true)]
+        public static object ComponentCopyExact(string sourceName = null, int sourceInstanceId = 0, string sourcePath = null, string targetName = null, int targetInstanceId = 0, string targetPath = null, string componentType = null)
+        {
+            if (Validate.Required(componentType, "componentType") is object err) return err;
+            var (srcGo, srcErr) = GameObjectFinder.FindOrError(name: sourceName, instanceId: sourceInstanceId, path: sourcePath);
+            if (srcErr != null) return srcErr;
+            var (dstGo, dstErr) = GameObjectFinder.FindOrError(name: targetName, instanceId: targetInstanceId, path: targetPath);
+            if (dstErr != null) return dstErr;
+
+            var type = FindComponentType(componentType);
+            if (type == null) return new { error = $"Component type not found: {componentType}" };
+
+            var srcComp = srcGo.GetComponent(type);
+            if (srcComp == null) return new { error = $"No {componentType} on {srcGo.name}" };
+
+            var before = new HashSet<Component>(dstGo.GetComponents(type).OfType<Component>());
+
+            WorkflowManager.SnapshotObject(dstGo);
+            Undo.RegisterCompleteObjectUndo(dstGo, "Copy Component Exact");
+
+            UnityEditorInternal.ComponentUtility.CopyComponent(srcComp);
+            if (!UnityEditorInternal.ComponentUtility.PasteComponentAsNew(dstGo))
+            {
+                return new { error = $"Failed to paste component as new: {componentType}" };
+            }
+
+            var copied = dstGo.GetComponents(type).OfType<Component>().FirstOrDefault(c => !before.Contains(c));
+            if (copied == null)
+            {
+                return new { error = $"Could not locate copied component after paste: {componentType}" };
+            }
+
+            Undo.RegisterCreatedObjectUndo(copied, "Copy Component Exact");
+            WorkflowManager.SnapshotObject(copied, SnapshotType.Created);
+            EditorUtility.SetDirty(copied);
+
+            var mismatches = SerializedPropertySkillUtility.CompareSerializedProperties(srcComp, copied);
+            if (mismatches.Count > 0)
+            {
+                return new
+                {
+                    success = false,
+                    source = srcGo.name,
+                    target = dstGo.name,
+                    componentType,
+                    verified = false,
+                    mismatchCount = mismatches.Count,
+                    mismatches = mismatches.ToArray()
+                };
+            }
+
+            return new
+            {
+                success = true,
+                source = srcGo.name,
+                target = dstGo.name,
+                componentType,
+                copiedComponentIndex = System.Array.IndexOf(dstGo.GetComponents(type), copied),
+                verified = true,
+                mismatchCount = 0
+            };
         }
 
         [UnitySkill("component_set_enabled", "Enable or disable a component (Behaviour, Renderer, Collider, etc.)",

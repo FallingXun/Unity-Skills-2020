@@ -2,6 +2,24 @@
 
 All notable changes to **UnitySkills** will be documented in this file.
 
+## [2.0.1] - 2026-06-02
+
+### Added
+
+- **RectTransform 深度控制 Skill** — 新增 `ui_get_rect_transform` / `ui_set_rect_transform` / `ui_set_rect_transform_batch`，覆盖 anchors、pivot、anchoredPosition3D、sizeDelta、offsetMin/offsetMax、local transform 与 width/height，补齐 UGUI 画布元素的深度布局调整能力。
+- **Inspector SerializedProperty 赋值能力** — 新增 `SerializedPropertySkillUtility` 与 `component_get_serialized_properties` / `component_set_serialized_property` / `component_set_serialized_property_batch`，支持 public、`[SerializeField] private`、嵌套字段、数组/List 路径、Enum、Vector、Color、场景对象引用与 Project 资产引用。
+- **脚本组件严格复制校验** — 新增 `component_copy_exact`，复制组件后逐项比对源/目标 `SerializedProperty`，字段不一致时返回 mismatch 报告，避免静默丢字段。
+- **UnityEvent 精确监听器替换** — 新增 `event_set_listener`，支持按 index 替换 Button `onClick` 等 persistent listener 的 target、method、call state 与静态参数（void/int/float/string/bool/Object）。
+
+### Changed
+
+- **Component / UI / Event 文档同步** — 更新调用侧模块文档，明确 Inspector 字段应优先使用 SerializedProperty 新接口，RectTransform 深度编辑与 UnityEvent 精确替换走新增 skill。
+- **版本号更新** — `SkillsLogger.Version` / `package.json` / Python helper `__version__` / `agent.md` 同步提升到 `2.0.1`。
+
+### Fixed
+
+- **深度 Inspector 能力测试覆盖** — 新增 `DeepInspectorSkillTests`，覆盖 RectTransform、SerializedProperty 字段赋值、严格组件复制与 Button onClick listener 替换；已通过 8091 Unity 实例验证。
+
 ## [2.0.0] - 2026-05-31
 
 > **重大更新**：本版本是基于 v1.9.4 全量审计（14-agent workflow）的深度一致性修复与效率优化版本，落地了「Skill 模式一致性 + 调用效率 + 辅助 Mode 修复计划」（`temp/skill-mode-consistency-fix-plan.md`）的全部 5 个工作包（WP-A 至 WP-E）。
