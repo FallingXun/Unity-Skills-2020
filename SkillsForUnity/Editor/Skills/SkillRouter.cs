@@ -2035,12 +2035,22 @@ namespace UnitySkills
                     }
                 }
 
-                // Handle child/parent operations
-                if (args.TryGetValue("childName", StringComparison.OrdinalIgnoreCase, out var childNameToken))
+                // Handle child/parent operations (entityId-aware fallback snapshot)
                 {
-                    var (childGo, _) = GameObjectFinder.FindOrError(childNameToken.ToString(), 0, null);
-                    if (childGo != null)
-                        WorkflowManager.SnapshotObject(childGo.transform);
+                    args.TryGetValue("childName", StringComparison.OrdinalIgnoreCase, out var childNameToken);
+                    args.TryGetValue("childEntityId", StringComparison.OrdinalIgnoreCase, out var childEntityIdToken);
+                    args.TryGetValue("childInstanceId", StringComparison.OrdinalIgnoreCase, out var childInstanceIdToken);
+                    args.TryGetValue("childPath", StringComparison.OrdinalIgnoreCase, out var childPathToken);
+                    var childEntityId = childEntityIdToken?.ToString();
+                    var childName = childNameToken?.ToString();
+                    int.TryParse(childInstanceIdToken?.ToString(), out int childInstanceId);
+                    var childPath = childPathToken?.ToString();
+                    if (!string.IsNullOrEmpty(childEntityId) || !string.IsNullOrEmpty(childName) || childInstanceId != 0 || !string.IsNullOrEmpty(childPath))
+                    {
+                        var (childGo, _) = GameObjectFinder.FindOrError(childName, childInstanceId, childPath, entityId: childEntityId);
+                        if (childGo != null)
+                            WorkflowManager.SnapshotObject(childGo.transform);
+                    }
                 }
 
                 // Handle batch items - snapshot each target in the batch

@@ -46,13 +46,13 @@ namespace UnitySkills
             RequiresInput = new[] { "prefabPath" },
             TracksWorkflow = true)]
         public static object PrefabInstantiate(string prefabPath, float x = 0, float y = 0, float z = 0, string name = null,
-            string parentName = null, int parentInstanceId = 0, string parentPath = null)
+            string parentName = null, int parentInstanceId = 0, string parentPath = null, string parentEntityId = null)
         {
             // Resolve parent first
             GameObject parentGo = null;
-            if (!string.IsNullOrEmpty(parentName) || parentInstanceId != 0 || !string.IsNullOrEmpty(parentPath))
+            if (!string.IsNullOrEmpty(parentEntityId) || !string.IsNullOrEmpty(parentName) || parentInstanceId != 0 || !string.IsNullOrEmpty(parentPath))
             {
-                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath);
+                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath, entityId: parentEntityId);
                 if (parentErr != null) return parentErr;
                 parentGo = found;
             }
@@ -79,7 +79,7 @@ namespace UnitySkills
             return new { success = true, name = instance.name, entityId = UnityObjectIdUtility.GetEntityId(instance), instanceId = UnityObjectIdUtility.GetObjectId(instance), path = GameObjectFinder.GetPath(instance) };
         }
 
-        [UnitySkill("prefab_instantiate_batch", "Instantiate multiple prefabs (Efficient). items: JSON array of {prefabPath, x, y, z, name, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, parentName, parentInstanceId, parentPath}",
+        [UnitySkill("prefab_instantiate_batch", "Instantiate multiple prefabs (Efficient). items: JSON array of {prefabPath, x, y, z, name, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, parentName, parentInstanceId, parentPath, parentEntityId}",
             Category = SkillCategory.Prefab, Operation = SkillOperation.Create,
             Tags = new[] { "prefab", "instantiate", "batch", "spawn", "scene" },
             Outputs = new[] { "results", "name", "instanceId", "position" },
@@ -116,9 +116,9 @@ namespace UnitySkills
                 if (instance == null)
                     throw new System.Exception($"Failed to instantiate prefab: {item.prefabPath}");
                 // Set parent if specified
-                if (!string.IsNullOrEmpty(item.parentName) || item.parentInstanceId != 0 || !string.IsNullOrEmpty(item.parentPath))
+                if (!string.IsNullOrEmpty(item.parentEntityId) || !string.IsNullOrEmpty(item.parentName) || item.parentInstanceId != 0 || !string.IsNullOrEmpty(item.parentPath))
                 {
-                    var (parentGo, parentErr) = GameObjectFinder.FindOrError(item.parentName, item.parentInstanceId, item.parentPath);
+                    var (parentGo, parentErr) = GameObjectFinder.FindOrError(item.parentName, item.parentInstanceId, item.parentPath, entityId: item.parentEntityId);
                     if (parentErr != null) throw new System.Exception($"Parent not found for '{item.name ?? item.prefabPath}'");
                     instance.transform.SetParent(parentGo.transform, false);
                 }
@@ -163,6 +163,7 @@ namespace UnitySkills
             public string parentName { get; set; }
             public int parentInstanceId { get; set; }
             public string parentPath { get; set; }
+            public string parentEntityId { get; set; }
         }
 
         [UnitySkill("prefab_apply", "Apply all overrides from prefab instance to the source prefab asset. Equivalent to prefab_apply_overrides.",

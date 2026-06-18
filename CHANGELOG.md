@@ -15,6 +15,8 @@ All notable changes to **UnitySkills** will be documented in this file.
 - **Unity 6000.5 编译兼容** — 替换业务代码中的 `GetInstanceID`、`EditorUtility.InstanceIDToObject`、`objectReferenceInstanceIDValue`、`Selection.instanceIDs` 等 obsolete API 入口，避免 warning-as-error 下编译失败。
 - **批处理模型序列化告警** — 移除 BatchModels 的 Unity 序列化标记，避免 Newtonsoft 持久化模型触发 UAC1009。
 - **对象定位与工作流选择恢复** — 批量查询/执行、GameObject 查找、Workflow bookmark 与 snapshot 支持 `entityId`，保留 legacy `instanceId` 兼容路径。
+- **父子/子对象 entityId 定位全链路打通** — 补齐 `prefab_instantiate`/`prefab_instantiate_batch` 挂父、Cinemachine mixing/state-driven/sequencer 子相机、SkillRouter 快照兜底的 `entityId` 参数；修复 planning 校验层（`SkillPlanningService`）对父子定位只认 name/path 而拒绝 entityId 的问题，现在 `childEntityId`/`parentEntityId` 从 HTTP 请求到执行全链路一致。
+- **兼容性说明（additive field）** — `entityId` 为新增的兼容字段，现有 `instanceId` 字段保留不变，legacy 调用方可继续使用 `instanceId`；新调用方优先使用 `entityId`，定位优先级 `entityId > instanceId > path > name`。二者并存，不作替换。
 
 ## [2.0.3] - 2026-06-14
 

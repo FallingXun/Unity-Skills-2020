@@ -320,6 +320,10 @@ namespace UnitySkills
                 return $"instanceId:{idToken.ToObject<int>()}";
             }
 
+            var entityId = GetStringArg(args, "entityId");
+            if (!string.IsNullOrWhiteSpace(entityId))
+                return $"entityId:{entityId}";
+
             return "(unspecified)";
         }
 
@@ -477,10 +481,10 @@ namespace UnitySkills
             }
 
             GameObject parentGo = null;
-            var (hasParent, parentName, parentInstanceId, parentPath) = ReadObjectLocator(args, "parentName", "parentInstanceId", "parentPath");
+            var (hasParent, parentName, parentInstanceId, parentPath, parentEntityId) = ReadObjectLocator(args, "parentName", "parentInstanceId", "parentPath", "parentEntityId");
             if (hasParent)
             {
-                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath);
+                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath, entityId: parentEntityId);
                 if (parentErr != null)
                     AddSemanticError(validation, "parent", ExtractError(parentErr));
                 else
@@ -548,10 +552,10 @@ namespace UnitySkills
                 }
 
                 string parentPath = "(root)";
-                var (hasParent, parentName, parentInstanceId, parentLocatorPath) = ReadObjectLocator(item, "parentName", "parentInstanceId", "parentPath");
+                var (hasParent, parentName, parentInstanceId, parentLocatorPath, parentEntityId) = ReadObjectLocator(item, "parentName", "parentInstanceId", "parentPath", "parentEntityId");
                 if (hasParent)
                 {
-                    var (parentGo, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentLocatorPath);
+                    var (parentGo, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentLocatorPath, entityId: parentEntityId);
                     if (parentErr != null)
                         errors.Add(ExtractError(parentErr));
                     else
@@ -665,7 +669,7 @@ namespace UnitySkills
         {
             var args = validation.Args;
 
-            var (child, childError) = ResolveGameObject(args, "childName", "childInstanceId", "childPath");
+            var (child, childError) = ResolveGameObject(args, "childName", "childInstanceId", "childPath", "childEntityId");
             if (childError != null)
             {
                 AddSemanticError(validation, "child", ExtractError(childError));
@@ -673,10 +677,10 @@ namespace UnitySkills
             }
 
             GameObject parentGo = null;
-            var (hasParent, parentName, parentInstanceId, parentPath) = ReadObjectLocator(args, "parentName", "parentInstanceId", "parentPath");
+            var (hasParent, parentName, parentInstanceId, parentPath, parentEntityId) = ReadObjectLocator(args, "parentName", "parentInstanceId", "parentPath", "parentEntityId");
             if (hasParent)
             {
-                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath);
+                var (found, parentErr) = GameObjectFinder.FindOrError(parentName, parentInstanceId, parentPath, entityId: parentEntityId);
                 if (parentErr != null)
                     AddSemanticError(validation, "parent", ExtractError(parentErr));
                 else
@@ -1869,23 +1873,26 @@ namespace UnitySkills
             JObject args,
             string nameKey = "name",
             string instanceIdKey = "instanceId",
-            string pathKey = "path")
+            string pathKey = "path",
+            string entityIdKey = "entityId")
         {
-            var (_, name, instanceId, path) = ReadObjectLocator(args, nameKey, instanceIdKey, pathKey);
-            return GameObjectFinder.FindOrError(name, instanceId, path);
+            var (_, name, instanceId, path, entityId) = ReadObjectLocator(args, nameKey, instanceIdKey, pathKey, entityIdKey);
+            return GameObjectFinder.FindOrError(name, instanceId, path, entityId: entityId);
         }
 
-        private static (bool hasLocator, string name, int instanceId, string path) ReadObjectLocator(
+        private static (bool hasLocator, string name, int instanceId, string path, string entityId) ReadObjectLocator(
             JObject args,
             string nameKey,
             string instanceIdKey,
-            string pathKey)
+            string pathKey,
+            string entityIdKey = "entityId")
         {
             var name = GetStringArg(args, nameKey);
             var path = GetStringArg(args, pathKey);
             int instanceId = GetIntArg(args, instanceIdKey);
-            bool hasLocator = !string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(path) || instanceId != 0;
-            return (hasLocator, name, instanceId, path);
+            var entityId = GetStringArg(args, entityIdKey);
+            bool hasLocator = !string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(path) || instanceId != 0 || !string.IsNullOrEmpty(entityId);
+            return (hasLocator, name, instanceId, path, entityId);
         }
 
         private static string ResolveShaderName(string shaderName, SkillRouter.ParameterValidationResult validation)

@@ -120,6 +120,7 @@ SemiAuto (read/query/analyze) skills are directly callable in every mode and spa
 3. For multi-step editor mutations, prefer workflow wrappers instead of free-form mutation sequences.
 4. Script edits, define changes, package changes, some imports, and test template creation can trigger compilation or Domain Reload. Wait and retry on transient unavailability.
 5. `test_*` skills are async. They return a `jobId` and must be polled with `test_get_result(jobId)`.
+6. **Object location (Unity 6000.4+)** — on Unity 6000.4+ the legacy `instanceId` is reported as `0` and is no longer a reliable handle; locate GameObjects/components by `entityId` (the `entityId` field returned by object skills) instead. Locator priority is `entityId > instanceId > path > name`. Object skills accept a synthetic `entityId` parameter and return both `entityId` and `instanceId`; on Unity < 6000.4 the `instanceId` path still works unchanged.
 
 ## Coding Reference Index
 

@@ -92,6 +92,8 @@
 2. **C# 实际返回值 vs Outputs 元数据**：解析方法体中 `return new { ... }` 的字段名，与 `Outputs` 数组比对（正则提取，覆盖主路径即可，不要求 100% 覆盖所有分支）
 3. 不一致标记为 🟡 中等（AI 依赖返回值做下一步决策，但不如参数不一致严重）
 
+> **豁免 `entityId`**：`entityId` 由 `SkillRouter.GetEffectiveOutputs / GetSkillParameters / GetEffectiveDescription` 在 `/skills` manifest 层对所有含 `instanceId` 的 skill **自动注入**，因此**不需要在静态 `Outputs` 元数据中显式声明**。校验时遇到「C# `return new { ... entityId ... }` 含 `entityId`」或「文档 Returns 出现 `entityId`」而 `Outputs` 未声明的情况，**一律不算不一致**，跳过该字段（同理适用于 `parentEntityId` / `childEntityId` 等定位入参）。
+
 ### 3f. DO NOT 列表验证（反向幽灵检查）
 
 扫描每个 SKILL.md 的 `## Guardrails` → `**DO NOT**` 区块，**只取箭头左侧声称"不存在"的 skill 名**（箭头方向规则见步骤 2.2），与 C# 实际 skill 名清单交叉验证：

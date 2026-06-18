@@ -924,17 +924,18 @@ namespace UnitySkills
             Tags = new[] { "camera", "mixing", "weight", "blend", "cinemachine" },
             Outputs = new[] { "success", "message" },
             RequiresInput = new[] { "mixingCamera", "vcam" })]
-        public static object CinemachineMixingCameraSetWeight(string mixerName = null, int mixerInstanceId = 0, string mixerPath = null, string childName = null, int childInstanceId = 0, string childPath = null, float weight = 1f)
+        public static object CinemachineMixingCameraSetWeight(string mixerName = null, int mixerInstanceId = 0, string mixerPath = null, string mixerEntityId = null,
+            string childName = null, int childInstanceId = 0, string childPath = null, string childEntityId = null, float weight = 1f)
         {
 #if !CINEMACHINE_2 && !CINEMACHINE_3
             return NoCinemachine();
 #else
-            var (mixerGo, mixerErr) = GameObjectFinder.FindOrError(mixerName, mixerInstanceId, mixerPath);
+            var (mixerGo, mixerErr) = GameObjectFinder.FindOrError(mixerName, mixerInstanceId, mixerPath, entityId: mixerEntityId);
             if (mixerErr != null) return mixerErr;
             var mixer = mixerGo.GetComponent<CinemachineMixingCamera>();
             if (mixer == null) return new { error = "Not a CinemachineMixingCamera" };
 
-            var (childGo, childErr) = GameObjectFinder.FindOrError(childName, childInstanceId, childPath);
+            var (childGo, childErr) = GameObjectFinder.FindOrError(childName, childInstanceId, childPath, entityId: childEntityId);
             if (childErr != null) return childErr;
             var childVcam = childGo.GetComponent<CinemachineVirtualCameraBase>();
             if (childVcam == null) return new { error = "Child is not a Cinemachine Virtual Camera" };
@@ -1007,17 +1008,19 @@ namespace UnitySkills
             Tags = new[] { "camera", "stateDriven", "instruction", "state", "cinemachine" },
             Outputs = new[] { "success", "message" },
             RequiresInput = new[] { "stateDrivenCamera", "vcam" })]
-        public static object CinemachineStateDrivenCameraAddInstruction(string cameraName = null, int cameraInstanceId = 0, string cameraPath = null, string stateName = null, string childCameraName = null, int childInstanceId = 0, string childPath = null, float minDuration = 0, float activateAfter = 0)
+        public static object CinemachineStateDrivenCameraAddInstruction(string cameraName = null, int cameraInstanceId = 0, string cameraPath = null, string cameraEntityId = null,
+            string stateName = null, string childCameraName = null, int childInstanceId = 0, string childPath = null, string childEntityId = null,
+            float minDuration = 0, float activateAfter = 0)
         {
 #if !CINEMACHINE_2 && !CINEMACHINE_3
             return NoCinemachine();
 #else
-            var (go, err) = GameObjectFinder.FindOrError(cameraName, cameraInstanceId, cameraPath);
+            var (go, err) = GameObjectFinder.FindOrError(cameraName, cameraInstanceId, cameraPath, entityId: cameraEntityId);
             if (err != null) return err;
             var stateCam = go.GetComponent<CinemachineStateDrivenCamera>();
             if (stateCam == null) return new { error = "Not a CinemachineStateDrivenCamera" };
 
-            var (childGo, childErr) = GameObjectFinder.FindOrError(childCameraName, childInstanceId, childPath);
+            var (childGo, childErr) = GameObjectFinder.FindOrError(childCameraName, childInstanceId, childPath, entityId: childEntityId);
             if (childErr != null) return childErr;
             var childVcam = childGo.GetComponent<CinemachineVirtualCameraBase>();
             if (childVcam == null) return new { error = "Child is not a Cinemachine Virtual Camera" };
@@ -1187,8 +1190,8 @@ namespace UnitySkills
             Outputs = new[] { "success", "message" },
             RequiresInput = new[] { "sequencer" })]
         public static object CinemachineSequencerAddInstruction(
-            string sequencerName = null, int sequencerInstanceId = 0, string sequencerPath = null,
-            string childCameraName = null, int childInstanceId = 0, string childPath = null,
+            string sequencerName = null, int sequencerInstanceId = 0, string sequencerPath = null, string sequencerEntityId = null,
+            string childCameraName = null, int childInstanceId = 0, string childPath = null, string childEntityId = null,
             float hold = 2f,
             string blendStyle = "EaseInOut",
             float blendTime = 2f)
@@ -1196,13 +1199,13 @@ namespace UnitySkills
 #if !CINEMACHINE_2 && !CINEMACHINE_3
             return NoCinemachine();
 #else
-            var (go, err) = GameObjectFinder.FindOrError(sequencerName, sequencerInstanceId, sequencerPath);
+            var (go, err) = GameObjectFinder.FindOrError(sequencerName, sequencerInstanceId, sequencerPath, entityId: sequencerEntityId);
             if (err != null) return err;
 
             var seq = CinemachineAdapter.GetSequencer(go);
             if (seq == null) return new { error = $"Not a {CinemachineAdapter.SequencerTypeName}" };
 
-            var (childGo, childErr) = GameObjectFinder.FindOrError(childCameraName, childInstanceId, childPath);
+            var (childGo, childErr) = GameObjectFinder.FindOrError(childCameraName, childInstanceId, childPath, entityId: childEntityId);
             if (childErr != null) return childErr;
             var childVcam = childGo.GetComponent<CinemachineVirtualCameraBase>();
             if (childVcam == null) return new { error = "Child is not a Cinemachine Virtual Camera" };
