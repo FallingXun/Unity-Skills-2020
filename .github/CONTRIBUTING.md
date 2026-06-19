@@ -87,6 +87,25 @@ Verify command | 检查命令：
 rg -n "1\\.6\\.2|2022\\.3\\+|447|15 分钟|15 minutes|SkillsLogger.Version|__version__" agent.md CHANGELOG.md README.md README_EN.md docs/SETUP_GUIDE.md SkillsForUnity/unity-skills~/SKILL.md SkillsForUnity/unity-skills~/skills/SKILL.md SkillsForUnity/package.json SkillsForUnity/unity-skills~/scripts/unity_skills.py SkillsForUnity/Editor/Skills/SkillsLogger.cs
 ```
 
+## CI & Tooling Etiquette | CI 与工具使用约定
+
+### Compile-check workflow | 编译检查工作流
+
+The **Unity Package Compile Matrix** (`.github/workflows/unity-package-compile.yml`) compiles and tests the package across multiple Unity versions and **consumes the maintainer's Unity license quota and CI minutes**. It is wired to run **only on tag push** (releases), not on every branch push. | **Unity Package Compile Matrix**（`.github/workflows/unity-package-compile.yml`）会跨多个 Unity 版本编译并测试本包，**会消耗维护者的 Unity 许可证配额与 CI 时长**。它被设计为**仅在 tag push（发布）时触发**，而非每次分支 push。
+
+> Please use it responsibly | 请合理使用：
+> - Do **not** push tags just to trigger CI | **不要**为了触发 CI 而随意打 tag
+> - Self-test locally with the **Before Submitting PR** checklist first | 提交 PR 前请先用 **Before Submitting PR** 清单本地自测
+> - The compile matrix is run by the maintainer at release time — you do not need to trigger it from a PR | 编译矩阵由维护者在发版时统一运行——贡献者无需在 PR 中触发
+
+### Custom commands (Claude Code) | 自定义命令（Claude Code）
+
+This repo ships maintainer slash-commands under `.claude/commands/`: `updateversion`, `skillcount`, `metacheck`, `skillcheck`, and `release`. | 本仓库在 `.claude/commands/` 下内置了维护者用的斜杠命令：`updateversion`、`skillcount`、`metacheck`、`skillcheck` 与 `release`。
+
+> Please use them responsibly | 请合理使用：
+> - `skillcount` / `metacheck` / `skillcheck` / `updateversion` may be used to self-check your changes | 这几个可用于自检你的改动
+> - **Do not run `release`** — it is maintainer-only: it hard-resets and force-pushes `main`, then creates the GitHub Release and tag. Running it from a fork or PR will damage the release flow. | **请勿运行 `release`**——它是维护者专用：会对 `main` 执行 hard reset 与 force push，并创建 GitHub Release 和 tag，从 fork 或 PR 运行会破坏发布流程。
+
 ## Feedback | 问题反馈
 
 - Bug reports: Use Issue template | Bug 报告请使用 Issue 模板
