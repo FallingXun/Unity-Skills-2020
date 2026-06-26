@@ -1756,7 +1756,11 @@ namespace UnitySkills
 
             foreach (var entry in unknownParams)
             {
+#if UNITY_2021_2_OR_NEWER
                 if (entry is not IDictionary<string, object> dict)
+#else
+                if (!(entry is IDictionary<string, object> dict))
+#endif
                     continue;
 
                 string param = dict.TryGetValue("parameter", out var pv) ? pv?.ToString() : null;

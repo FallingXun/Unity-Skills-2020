@@ -119,7 +119,12 @@ namespace UnitySkills
 
             return property.propertyType == SerializedPropertyType.Enum
                 ? property.enumNames[Mathf.Clamp(property.enumValueIndex, 0, property.enumNames.Length - 1)]
+#if UNITY_2021_2_OR_NEWER
                 : property.intValue;
+#else
+                : (object)(property.intValue);
+#endif
+
         }
 
         public static bool TrySetEnumSerializedProperty(SerializedProperty property, string enumName, int? rawValue, out string error)
@@ -852,7 +857,12 @@ namespace UnitySkills
         public static void SyncRendererFeatureMap(ScriptableRendererData rendererData)
         {
             var mapField = typeof(ScriptableRendererData).GetField("m_RendererFeatureMap", BindingFlags.Instance | BindingFlags.NonPublic);
+#if UNITY_2021_2_OR_NEWER
             if (mapField?.GetValue(rendererData) is not List<long> map)
+#else
+            if (!(mapField?.GetValue(rendererData) is List<long> map))
+#endif
+
                 return;
 
             map.Clear();

@@ -58,7 +58,11 @@ namespace UnitySkills
                 if (IsObsoleteBuildTargetGroup(btg)) continue;
 
                 string currentDefs;
+#if UNITY_2021_2_OR_NEWER
                 try { currentDefs = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(btg)) ?? string.Empty; }
+#else
+                try { currentDefs = PlayerSettings.GetScriptingDefineSymbolsForGroup(btg) ?? string.Empty; }
+#endif
                 catch { continue; }
 
                 var defList = currentDefs
@@ -94,7 +98,11 @@ namespace UnitySkills
         {
             try
             {
+#if UNITY_2021_2_OR_NEWER
                 PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(btg), string.Join(";", defs));
+#else
+                PlayerSettings.SetScriptingDefineSymbolsForGroup(btg, string.Join(";", defs));
+#endif
             }
             catch (Exception ex)
             {

@@ -1070,11 +1070,20 @@ public class {testName}
             if (string.IsNullOrWhiteSpace(csv))
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+#if UNITY_2021_2_OR_NEWER
             return csv
                 .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(item => item.Trim())
                 .Where(item => !string.IsNullOrWhiteSpace(item))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+#else
+            return new HashSet<string>(
+                csv
+                    .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(item => item.Trim())
+                    .Where(item => !string.IsNullOrWhiteSpace(item)),
+                StringComparer.OrdinalIgnoreCase);
+#endif
         }
 
         private sealed class SmokeRequest

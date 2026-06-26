@@ -742,6 +742,7 @@ namespace UnitySkills
             
             if (go == null) EditorUtility.SetDirty(material);
 
+#if UNITY_2021_2_OR_NEWER
             string queueName = renderQueue switch
             {
                 -1 => "ShaderDefault",
@@ -752,6 +753,16 @@ namespace UnitySkills
                 < 4000 => "Transparent",
                 _ => "Overlay"
             };
+#else
+            string queueName;
+            if (renderQueue < 0) queueName = "ShaderDefault";
+            else if (renderQueue < 2000) queueName = "Background";
+            else if (renderQueue < 2450) queueName = "Geometry";
+            else if (renderQueue < 2500) queueName = "AlphaTest";
+            else if (renderQueue < 3000) queueName = "GeometryLast";
+            else if (renderQueue < 4000) queueName = "Transparent";
+            else queueName = "Overlay";
+#endif
 
             return new { 
                 success = true, 
@@ -880,9 +891,13 @@ namespace UnitySkills
                         var tex = material.GetTexture(propName);
                         textures.Add(new { name = propName, description = propDesc, value = tex != null ? tex.name : null });
                         break;
+#if UNITY_2021_2_OR_NEWER
                     case UnityEngine.Rendering.ShaderPropertyType.Int:
                         integers.Add(new { name = propName, description = propDesc, value = material.GetInt(propName) });
                         break;
+#else
+                    // Unity 2020 ²»Ö§³Ö UnityEngine.Rendering.ShaderPropertyType.Int
+#endif
                 }
             }
 

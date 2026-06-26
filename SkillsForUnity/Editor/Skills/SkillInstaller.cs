@@ -235,6 +235,7 @@ namespace UnitySkills
 
         private static void CopyTemplateDirectory(string sourceRoot, string targetRoot, Encoding encoding)
         {
+#if UNITY_2021_2_OR_NEWER
             foreach (var directory in Directory.GetDirectories(sourceRoot, "*", SearchOption.AllDirectories))
             {
                 string relativePath = Path.GetRelativePath(sourceRoot, directory);
@@ -249,6 +250,28 @@ namespace UnitySkills
                 string relativePath = Path.GetRelativePath(sourceRoot, file);
                 if (ShouldSkipTemplatePath(relativePath))
                     continue;
+#else
+            string GetRelativePath(string relativeTo, string path)
+            {
+                relativeTo = relativeTo.Replace('\\', '/').TrimEnd('/') + "/";
+                path = path.Replace('\\', '/');
+                if (path.StartsWith(relativeTo, StringComparison.OrdinalIgnoreCase))
+                    return path.Substring(relativeTo.Length);
+                return path;
+            }
+            foreach (var directory in Directory.GetDirectories(sourceRoot, "*", SearchOption.AllDirectories))
+            {
+                string relativePath = GetRelativePath(sourceRoot, directory);
+                if (ShouldSkipTemplatePath(relativePath))
+                    continue;
+                Directory.CreateDirectory(Path.Combine(targetRoot, relativePath));
+            }
+            foreach (var file in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
+            {
+                string relativePath = GetRelativePath(sourceRoot, file);
+                if (ShouldSkipTemplatePath(relativePath))
+                    continue;
+#endif
 
                 string destination = Path.Combine(targetRoot, relativePath);
                 string destinationDirectory = Path.GetDirectoryName(destination);

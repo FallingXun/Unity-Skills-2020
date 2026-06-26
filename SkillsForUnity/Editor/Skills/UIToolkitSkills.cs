@@ -211,6 +211,7 @@ namespace UnitySkills
                 go.transform.SetParent(parent.transform, false);
             }
 
+#if UNITY_2021_2_OR_NEWER
             var doc = go.AddComponent<UIDocument>();
 
             if (!string.IsNullOrEmpty(uxmlPath))
@@ -259,6 +260,9 @@ namespace UnitySkills
                 hasPanelSettings = doc.panelSettings != null,
                 sortOrder
             };
+#else
+            return new { error = "UIDocument requires Unity 2021.2 or newer." };
+#endif
         }
 
         [UnitySkill("uitk_set_document", "Set UIDocument properties on an existing scene GameObject",
@@ -279,6 +283,7 @@ namespace UnitySkills
             if (go == null)
                 return new { error = $"GameObject not found: {name ?? path}" };
 
+#if UNITY_2021_2_OR_NEWER
             var doc = go.GetComponent<UIDocument>() ?? go.AddComponent<UIDocument>();
             Undo.RecordObject(doc, "Set UIDocument");
 
@@ -313,6 +318,9 @@ namespace UnitySkills
                 panelSettings = doc.panelSettings != null ? AssetDatabase.GetAssetPath(doc.panelSettings) : null,
                 sortingOrder = doc.sortingOrder
             };
+#else
+            return new { error = "UIDocument requires Unity 2021.2 or newer." };
+#endif
         }
 
         [UnitySkill("uitk_create_panel_settings", "Create a PanelSettings asset for UI Toolkit",
@@ -358,6 +366,7 @@ namespace UnitySkills
             int? vertexBudget = null,
             int? textureSlotCount = null)
         {
+#if UNITY_2021_2_OR_NEWER
             if (Validate.SafePath(savePath, "savePath") is object pathErr) return pathErr;
             if (File.Exists(savePath))
                 return new { error = $"File already exists: {savePath}" };
@@ -410,6 +419,9 @@ namespace UnitySkills
                 referenceResolution = $"{referenceResolutionX}x{referenceResolutionY}",
                 screenMatchMode = settings.screenMatchMode.ToString()
             };
+#else
+            return new { error = "PanelSettings requires Unity 2021.2 or newer." };
+#endif
         }
 
         [UnitySkill("uitk_get_panel_settings", "Read all properties of a PanelSettings asset",
@@ -421,6 +433,7 @@ namespace UnitySkills
             Mode = SkillMode.SemiAuto)]
         public static object UitkGetPanelSettings(string assetPath)
         {
+#if UNITY_2021_2_OR_NEWER
             if (Validate.SafePath(assetPath, "assetPath") is object pathErr) return pathErr;
             var settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(assetPath);
             if (settings == null)
@@ -509,6 +522,9 @@ namespace UnitySkills
                 clearDepthStencil = settings.clearDepthStencil
             };
 #endif
+#else
+            return new { error = "PanelSettings requires Unity 2021.2 or newer." };
+#endif
         }
 
         [UnitySkill("uitk_set_panel_settings", "Modify properties on an existing PanelSettings asset",
@@ -551,6 +567,7 @@ namespace UnitySkills
             int? vertexBudget = null,
             int? textureSlotCount = null)
         {
+#if UNITY_2021_2_OR_NEWER
             if (Validate.SafePath(assetPath, "assetPath") is object pathErr) return pathErr;
             var settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(assetPath);
             if (settings == null)
@@ -607,6 +624,9 @@ namespace UnitySkills
                 referenceResolution = $"{settings.referenceResolution.x}x{settings.referenceResolution.y}",
                 screenMatchMode = settings.screenMatchMode.ToString()
             };
+#else
+            return new { error = "PanelSettings requires Unity 2021.2 or newer." };
+#endif
         }
 
         [UnitySkill("uitk_list_documents", "List all UIDocument components in the active scene",
@@ -617,6 +637,7 @@ namespace UnitySkills
             Mode = SkillMode.SemiAuto)]
         public static object UitkListDocuments()
         {
+#if UNITY_2021_2_OR_NEWER
             var docs = FindHelper.FindAll<UIDocument>();
             var result = docs.Select(doc => new
             {
@@ -630,6 +651,9 @@ namespace UnitySkills
             }).ToArray();
 
             return new { count = result.Length, documents = result };
+#else
+            return new { count = 0, documents = new object[0] };
+#endif
         }
 
         // ============================ INSPECTION ============================
@@ -732,6 +756,7 @@ namespace UnitySkills
         }
 
         // ============================ PANEL SETTINGS HELPERS ============================
+#if UNITY_2021_2_OR_NEWER
 
         private static DynamicAtlasFilters ParseDynamicAtlasFilters(string filters)
         {
@@ -884,6 +909,8 @@ namespace UnitySkills
 
             return null; // success
         }
+
+#endif // UNITY_2021_2_OR_NEWER
 
         // ============================ PRIVATE HELPERS ============================
 
@@ -1688,6 +1715,7 @@ public class {className} : MonoBehaviour
             if (go == null)
                 return new { error = $"GameObject not found: {name ?? path}" };
 
+#if UNITY_2021_2_OR_NEWER
             var doc = go.GetComponent<UIDocument>();
             if (doc == null)
                 return new { error = $"No UIDocument component on '{go.name}'" };
@@ -1704,6 +1732,9 @@ public class {className} : MonoBehaviour
                 instanceId = UnityObjectIdUtility.GetObjectId(go),
                 hierarchy
             };
+#else
+            return new { error = "UIDocument requires Unity 2021.2 or newer." };
+#endif
         }
 
         // ============================ PRIVATE UITK HELPERS ============================

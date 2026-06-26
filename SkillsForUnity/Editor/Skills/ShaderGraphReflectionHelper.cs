@@ -126,7 +126,20 @@ namespace UnitySkills
                 .OrderBy(fullPath => fullPath, StringComparer.OrdinalIgnoreCase)
                 .Select(fullPath =>
                 {
+#if UNITY_2021_2_OR_NEWER
                     var relative = Path.GetRelativePath(packageRoot, fullPath).Replace('\\', '/');
+#else
+                    string GetRelativePath(string relativeTo, string path)
+                    {
+                       relativeTo = relativeTo.Replace('\\', '/').TrimEnd('/') + "/";
+                       path = path.Replace('\\', '/');
+                       if (path.StartsWith(relativeTo, StringComparison.OrdinalIgnoreCase))
+                          return path.Substring(relativeTo.Length);
+                       return path;
+                       }
+                    var relative = GetRelativePath(packageRoot, fullPath).Replace('\\', '/');
+#endif
+
                     var logicalPath = $"{PackageRoot}/{relative}";
                     var directory = Path.GetDirectoryName(relative)?.Replace('\\', '/');
                     var extension = Path.GetExtension(fullPath);

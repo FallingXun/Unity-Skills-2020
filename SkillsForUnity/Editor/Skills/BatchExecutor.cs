@@ -18,8 +18,13 @@ namespace UnitySkills
 
         private static bool HasErrorMember(Type type)
         {
+#if UNITY_2021_2_OR_NEWER
             return _hasErrorMemberCache.GetOrAdd(type, static t =>
                 t.GetProperty("error") != null || t.GetField("error") != null);
+#else
+            return _hasErrorMemberCache.GetOrAdd(type, t =>
+                t.GetProperty("error") != null || t.GetField("error") != null);
+#endif
         }
 
         /// <summary>

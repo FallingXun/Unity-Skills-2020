@@ -1,9 +1,9 @@
+#if UNITY_2021_2_OR_NEWER
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
-
 namespace UnitySkills
 {
     public class HistoryTabController
@@ -219,3 +219,5 @@ namespace UnitySkills
         }
     }
 }
+#endif
+

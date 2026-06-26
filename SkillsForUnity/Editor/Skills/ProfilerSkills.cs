@@ -47,7 +47,11 @@ namespace UnitySkills
             long totalUnusedReservedMemory = Profiler.GetTotalUnusedReservedMemoryLong();
 
             float? frameTime = GetStatFloat("frameTime");
+#if UNITY_2021_2_OR_NEWER
             float? fps = frameTime.HasValue && frameTime.Value > 0 ? 1000f / frameTime.Value : null;
+#else
+            float? fps = frameTime.HasValue && frameTime.Value > 0 ? (float?)(1000f / frameTime.Value) : null;
+#endif
 
             int visibleSkinnedMeshes = 0;
             foreach (var smr in FindHelper.FindAll<SkinnedMeshRenderer>())

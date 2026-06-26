@@ -1,3 +1,4 @@
+#if UNITY_2021_2_OR_NEWER
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,7 +6,6 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
-
 namespace UnitySkills
 {
     /// <summary>
@@ -334,3 +334,5 @@ namespace UnitySkills
         private static string L(string key, string en, string zh) => PermissionUiHelpers.L(key, en, zh);
     }
 }
+#endif
+

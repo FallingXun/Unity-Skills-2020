@@ -143,7 +143,11 @@ namespace UnitySkills.Tests.Core
 
             Assert.That(result["success"]?.Value<bool>(), Is.True);
             Assert.That(button.onClick.GetPersistentMethodName(0), Is.EqualTo(nameof(DeepInspectorFixture.AcceptString)));
+#if UNITY_2021_2_OR_NEWER
             Assert.That(button.onClick.GetPersistentListenerState(0), Is.EqualTo(UnityEventCallState.EditorAndRuntime));
+#else
+            // Unity 2020 ²»Ö§³Ö GetPersistentListenerState
+#endif
 
             var serialized = new SerializedObject(button);
             var arg = serialized.FindProperty("m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_StringArgument");

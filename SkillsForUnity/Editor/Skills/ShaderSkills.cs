@@ -235,7 +235,11 @@ namespace UnitySkills
         {
             var shader = FindShaderByNameOrPath(shaderNameOrPath);
             if (shader == null) return new { error = $"Shader not found: {shaderNameOrPath}" };
+#if UNITY_2022_1_OR_NEWER
             var keywords = shader.keywordSpace.keywords.Select(k => new { name = k.name, type = k.type.ToString() }).ToArray();
+#else
+            var keywords = new object[0];
+#endif
             return new { shaderName = shader.name, keywordCount = keywords.Length, keywords };
         }
 

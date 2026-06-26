@@ -449,10 +449,18 @@ namespace UnitySkills
 
         private static List<object> BuildSuggestedNextSkills(IEnumerable<object> findings)
         {
+#if UNITY_2021_2_OR_NEWER
             var findingTypes = findings
                 .Select(f => GetPropertyValue<string>(f, "type", string.Empty))
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+#else
+            var findingTypes = new HashSet<string>(
+                findings
+                    .Select(f => GetPropertyValue<string>(f, "type", string.Empty))
+                    .Where(t => !string.IsNullOrWhiteSpace(t)),
+                StringComparer.OrdinalIgnoreCase);
+#endif
 
             var suggestions = new List<object>
             {
@@ -754,9 +762,16 @@ namespace UnitySkills
 
             var metrics = CollectSceneMetrics(includeComponentStats: false);
             var findings = new List<object>();
+#if UNITY_2021_2_OR_NEWER
             var rootNames = metrics.Scene.GetRootGameObjects()
                 .Select(go => go.name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+#else
+            var rootNames = new HashSet<string>(
+                metrics.Scene.GetRootGameObjects()
+                    .Select(go => go.name),
+                StringComparer.OrdinalIgnoreCase);
+#endif
 
             foreach (var requiredRoot in requiredRoots)
             {
@@ -1637,7 +1652,11 @@ namespace UnitySkills
                         var sv = prop.stringValue;
                         value = sv != null && sv.Length > 100 ? sv.Substring(0, 100) + "..." : sv;
                         break;
+#if UNITY_2021_2_OR_NEWER
                     case SerializedPropertyType.Enum: value = prop.enumDisplayNames != null && prop.enumValueIndex >= 0 && prop.enumValueIndex < prop.enumDisplayNames.Length ? prop.enumDisplayNames[prop.enumValueIndex] : prop.enumValueIndex; break;
+#else
+                    case SerializedPropertyType.Enum: value = prop.enumDisplayNames != null && prop.enumValueIndex >= 0 && prop.enumValueIndex < prop.enumDisplayNames.Length ? prop.enumDisplayNames[prop.enumValueIndex] : (object)prop.enumValueIndex; break;
+#endif
                     case SerializedPropertyType.Vector2: value = FormatVec(prop.vector2Value); break;
                     case SerializedPropertyType.Vector3: value = FormatVec(prop.vector3Value); break;
                     case SerializedPropertyType.Vector4: value = FormatVec(prop.vector4Value); break;

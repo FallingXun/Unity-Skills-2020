@@ -358,6 +358,7 @@ namespace UnitySkills
             Mode = SkillMode.SemiAuto)]
         public static object ProjectGetPlayerSettings()
         {
+#if UNITY_2021_2_OR_NEWER
             return new
             {
                 success = true,
@@ -370,6 +371,22 @@ namespace UnitySkills
                 apiCompatibility = PlayerSettings.GetApiCompatibilityLevel(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup)).ToString(),
                 scriptingBackend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup)).ToString()
             };
+#else
+            var bt = EditorUserBuildSettings.selectedBuildTargetGroup;
+            return new
+            {
+                success = true,
+                productName = PlayerSettings.productName,
+                companyName = PlayerSettings.companyName,
+                bundleVersion = PlayerSettings.bundleVersion,
+                defaultScreenWidth = PlayerSettings.defaultScreenWidth,
+                defaultScreenHeight = PlayerSettings.defaultScreenHeight,
+                fullscreen = PlayerSettings.fullScreenMode.ToString(),
+                apiCompatibility = PlayerSettings.GetApiCompatibilityLevel(bt).ToString(),
+                scriptingBackend = PlayerSettings.GetScriptingBackend(bt).ToString()
+            };
+#endif
+
         }
 
     }

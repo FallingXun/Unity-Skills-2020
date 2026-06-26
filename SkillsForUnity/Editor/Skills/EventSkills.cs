@@ -53,7 +53,11 @@ namespace UnitySkills
             {
                 var target = unityEvent.GetPersistentTarget(i);
                 var methodName = unityEvent.GetPersistentMethodName(i);
+#if UNITY_2021_2_OR_NEWER
                 var state = unityEvent.GetPersistentListenerState(i);
+#else
+                var state = "Unsupported in 2020";
+#endif
 
                 listeners.Add(new
                 {

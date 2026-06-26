@@ -1,9 +1,9 @@
+#if UNITY_2021_2_OR_NEWER
 using System;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UIElements;
 using UnityEngine.TextCore.Text;
-
 namespace UnitySkills
 {
     /// <summary>
@@ -76,3 +76,5 @@ namespace UnitySkills
         }
     }
 }
+#endif
+
